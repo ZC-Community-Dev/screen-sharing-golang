@@ -13,6 +13,8 @@ em SQLite, e recebem um token secreto para apresentar só a tela. Quem
 abre o link assiste numa sala no estilo reunião, sem voz. O plano de
 controle é HTTP JSON no Gin; presença e sinalização WebRTC vão num
 WebSocket auxiliar; a mídia é WebRTC só-vídeo em malha.
+Sinalização: o espectador anuncia `kind: ready` (alias `to: "presenter"`);
+o apresentador cria o offer. Sem SFU.
 
 ## Technical Context
 

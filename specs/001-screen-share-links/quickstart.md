@@ -9,17 +9,16 @@ de testes. Contratos: [http-api.yaml](./contracts/http-api.yaml),
 
 - Go 1.25+
 - Node.js com npm (Angular 21 no `app/`)
-- Variável `LINK_ID_SALT` definida (string secreta não vazia)
+- Arquivo `api/.env` com `LINK_ID_SALT` não vazio (copie `api/.env.example`).
+  Variáveis já exportadas no shell prevalecem sobre o arquivo.
 - Dois perfis de navegador (apresentador e espectador)
 
 ## Setup
 
 ```powershell
-$env:LINK_ID_SALT = "dev-salt-not-for-production"
-$env:GIN_MODE = "debug"
-
-# backend
+# backend — lê api/.env automaticamente (não precisa exportar o sal)
 cd api
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 go test ./...
 go run ./cmd/server
 
@@ -38,7 +37,8 @@ para `/api`.
 
 1. Abrir a tela inicial.
 2. Acionar **Gerar link**.
-3. Confirmar id com ≥8 caracteres Base62 e URL pública sem token.
+3. Confirmar id com ≥8 caracteres Base62, URL pública sem token, e o
+   token de apresentador visível na tela.
 4. Copiar o link: a área de transferência MUST ser só a URL pública.
 5. Reiniciar o processo `api` e abrir `GET /api/v1/links/{id}` — 200.
 

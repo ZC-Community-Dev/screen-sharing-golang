@@ -1,0 +1,37 @@
+<main class="flex min-h-dvh flex-col items-center justify-center bg-meet-bg px-6 text-white">
+  <h1 class="mb-3 text-3xl font-medium">Screen Share</h1>
+  <p class="mb-8 max-w-md text-center text-meet-muted">
+    Gere um link, compartilhe só a tela e convide outras pessoas para assistir. Sem voz.
+  </p>
+  <button
+    type="button"
+    class="rounded-full bg-blue-500 px-6 py-3 text-sm font-medium hover:bg-blue-400 disabled:opacity-50"
+    [disabled]="busy()"
+    (click)="generate()"
+  >
+    Gerar link
+  </button>
+  @if (created(); as link) {
+    <div class="mt-8 w-full max-w-md space-y-3 rounded-xl bg-white/5 p-4 text-sm">
+      <p>
+        Link público:
+        <span data-testid="public-url" class="break-all text-meet-muted">{{ link.publicUrl }}</span>
+      </p>
+      <p>
+        Token de apresentador:
+        <span data-testid="presenter-token" class="break-all font-mono">{{ link.presenterToken }}</span>
+      </p>
+      <p class="text-meet-muted">Guarde o token. Ele não vai no link que você envia.</p>
+      <button
+        type="button"
+        class="rounded-full bg-white/10 px-4 py-2"
+        (click)="enterRoom()"
+      >
+        Entrar na sala
+      </button>
+    </div>
+  }
+  @if (error()) {
+    <p class="mt-4 text-sm text-red-300">{{ error() }}</p>
+  }
+</main>

@@ -56,7 +56,9 @@ Presença temporária numa sala. Morre com o processo ou com o WebSocket.
 - Várias sessões `viewer`.
 - Claim de apresentador com token válido e apresentador já ativo → 409.
 - Queda da sessão apresentador → `Link.state = waiting` e broadcast aos viewers.
-- `participantCount` = número de sessões conectadas naquele `link_id`.
+- `participantCount` = sessões **com WebSocket attached** (`send != nil`),
+  não o join HTTP sozinho.
+- Join HTTP sem attach em 30s MUST ser descartado (não conta, não bloqueia).
 
 ## RoomEvent (mensagem de tempo real)
 

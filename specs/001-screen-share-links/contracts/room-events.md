@@ -26,12 +26,35 @@ Encaminha SDP ou ICE para outro peer da mesma sala.
 }
 ```
 
-`kind`: `offer` | `answer` | `ice`.
+`kind`: `offer` | `answer` | `ice` | `ready`.
 
 Para `ice`, `payload.candidate` substitui `sdp`.
 
+`to` aceita um `sessionId` da sala **ou** o alias `"presenter"`.
+O servidor MUST reescrever `"presenter"` para o `sessionId` do
+apresentador ativo. Se não houver apresentador, MUST descartar o frame.
+
 O servidor MUST entregar só se `to` estiver na mesma sala. MUST NOT
 retransmitir a clientes de outro `id`.
+
+### Handshake de late-join (obrigatório)
+
+1. Espectador recebe `room.state` com `state=sharing` (no connect ou
+   depois do start) e envia:
+
+```json
+{
+  "type": "signal",
+  "to": "presenter",
+  "payload": { "kind": "ready" }
+}
+```
+
+2. O apresentador MUST responder com `offer` para o `from` desse
+   `ready` (um `RTCPeerConnection` por espectador).
+3. Espectador responde `answer`; ambos trocam `ice`.
+4. Espectador MUST NOT enviar `offer` de captura.
+5. O cliente MUST enfileirar `signal` até o WebSocket estar `OPEN`.
 
 ## Server → Client
 

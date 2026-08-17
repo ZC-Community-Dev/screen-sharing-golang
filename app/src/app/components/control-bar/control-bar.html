@@ -1,0 +1,18 @@
+<footer class="flex h-16 items-center justify-between bg-meet-bar px-6 text-sm text-white">
+  <button type="button" class="rounded-full bg-white/10 px-4 py-2" (click)="copy.emit()">
+    Copiar link
+  </button>
+  <p data-testid="people-count">{{ participantCount() }} pessoas</p>
+  <div class="flex gap-2">
+    @if (canPresent() && !sharing()) {
+      <button type="button" class="rounded-full bg-blue-500 px-4 py-2" (click)="startShare.emit()">
+        Compartilhar tela
+      </button>
+    }
+    @if (canPresent() && sharing()) {
+      <button type="button" class="rounded-full bg-red-500 px-4 py-2" (click)="stopShare.emit()">
+        Parar
+      </button>
+    }
+  </div>
+</footer>

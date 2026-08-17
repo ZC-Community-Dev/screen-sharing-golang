@@ -1,0 +1,30 @@
+# OS / editors
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.idea/
+.vscode/
+
+# Env and secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Go
+*.exe
+*.test
+*.out
+vendor/
+api/data/*.db
+api/data/*.db-*
+
+# Node / Angular
+node_modules/
+dist/
+build/
+.angular/
+coverage/

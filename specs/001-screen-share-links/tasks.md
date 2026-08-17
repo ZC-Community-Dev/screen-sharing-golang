@@ -28,11 +28,11 @@ escrever testes, confirmar falha, depois implementar.
 
 **Purpose**: Estrutura canônica `api/` + `app/` e dependências
 
-- [ ] T001 Create package dirs `api/cmd/server/`, `api/internal/httpapi/`, `api/internal/links/`, `api/internal/ids/`, `api/internal/room/`, `api/internal/db/`, `api/data/`, and `api/testdata/`
-- [ ] T002 Add Gin, `modernc.org/sqlite`, and a WebSocket library to `api/go.mod`
-- [ ] T003 [P] Add `app/proxy.conf.json` and wire `ng serve --proxy-config` so `/api` reaches `http://127.0.0.1:8080` in `app/angular.json`
-- [ ] T004 [P] Ignore `*.db` via `api/data/.gitignore`
-- [ ] T005 Create Gin process entry skeleton in `api/cmd/server/main.go`
+- [x] T001 Create package dirs `api/cmd/server/`, `api/internal/httpapi/`, `api/internal/links/`, `api/internal/ids/`, `api/internal/room/`, `api/internal/db/`, `api/data/`, and `api/testdata/`
+- [x] T002 Add Gin, `modernc.org/sqlite`, and a WebSocket library to `api/go.mod`
+- [x] T003 [P] Add `app/proxy.conf.json` and wire `ng serve --proxy-config` so `/api` reaches `http://127.0.0.1:8080` in `app/angular.json`
+- [x] T004 [P] Ignore `*.db` via `api/data/.gitignore`
+- [x] T005 Create Gin process entry skeleton in `api/cmd/server/main.go`
 
 ---
 
@@ -42,14 +42,14 @@ escrever testes, confirmar falha, depois implementar.
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T006 Fail startup when `LINK_ID_SALT` is empty in `api/internal/httpapi/config.go`
-- [ ] T007 [P] Add structured JSON request logging that never prints salt or tokens in `api/internal/httpapi/log.go`
-- [ ] T008 [P] Implement `ErrorBody` (`link_not_found`, `link_invalid`, `presenter_unauthorized`, `presenter_conflict`, `share_conflict`, `internal_error`) in `api/internal/httpapi/errors.go`
-- [ ] T009 Open SQLite at `api/data/links.db`, create the `links` table, and reset `sharing` → `waiting` on open in `api/internal/db/db.go`
-- [ ] T010 Define `Link` fields and repository interface in `api/internal/links/link.go`
-- [ ] T011 Register Gin `/api/v1` group and CORS for the Angular origin in `api/internal/httpapi/router.go`
-- [ ] T012 Wire config, SQLite, logger, and router in `api/cmd/server/main.go`
-- [ ] T013 Add in-memory session hub (no WebSocket upgrade yet) in `api/internal/room/hub.go`
+- [x] T006 Fail startup when `LINK_ID_SALT` is empty in `api/internal/httpapi/config.go`
+- [x] T007 [P] Add structured JSON request logging that never prints salt or tokens in `api/internal/httpapi/log.go`
+- [x] T008 [P] Implement `ErrorBody` (`link_not_found`, `link_invalid`, `presenter_unauthorized`, `presenter_conflict`, `share_conflict`, `internal_error`) in `api/internal/httpapi/errors.go`
+- [x] T009 Open SQLite at `api/data/links.db`, create the `links` table, and reset `sharing` → `waiting` on open in `api/internal/db/db.go`
+- [x] T010 Define `Link` fields and repository interface in `api/internal/links/link.go`
+- [x] T011 Register Gin `/api/v1` group and CORS for the Angular origin in `api/internal/httpapi/server.go`
+- [x] T012 Wire config, SQLite, logger, and router in `api/cmd/server/main.go`
+- [x] T013 Add in-memory session hub (no WebSocket upgrade yet) in `api/internal/room/hub.go`
 
 **Checkpoint**: Foundation ready — user story implementation can begin
 
@@ -67,21 +67,21 @@ pública sem token e guarda o token de apresentador só na aba criadora.
 
 > Write these tests FIRST and confirm they FAIL before implementation
 
-- [ ] T014 [P] [US1] Add failing unit tests for Base62 alphabet, length ≥8, and non-sequential ids in `api/internal/ids/ids_test.go`
-- [ ] T015 [P] [US1] Add failing contract test for `POST /api/v1/links` 201 `{id,publicUrl,presenterToken}` in `api/internal/httpapi/create_link_contract_test.go`
-- [ ] T016 [P] [US1] Add failing contract test that `GET /api/v1/links/{id}` 200 omits `presenterToken` in `api/internal/httpapi/get_link_contract_test.go`
-- [ ] T017 [P] [US1] Add failing integration test create → reopen SQLite file → GET same id in `api/internal/httpapi/link_persist_test.go`
-- [ ] T018 [P] [US1] Add failing home test: generate copies public URL only in `app/src/app/pages/home/home.spec.ts`
+- [x] T014 [P] [US1] Add failing unit tests for Base62 alphabet, length ≥8, and non-sequential ids in `api/internal/ids/ids_test.go`
+- [x] T015 [P] [US1] Add failing contract test for `POST /api/v1/links` 201 `{id,publicUrl,presenterToken}` in `api/internal/httpapi/create_link_contract_test.go`
+- [x] T016 [P] [US1] Add failing contract test that `GET /api/v1/links/{id}` 200 omits `presenterToken` in `api/internal/httpapi/get_link_contract_test.go`
+- [x] T017 [P] [US1] Add failing integration test create → reopen SQLite file → GET same id in `api/internal/httpapi/link_persist_test.go`
+- [x] T018 [P] [US1] Add failing home test: generate copies public URL only in `app/src/app/pages/home/home.spec.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T019 [US1] Implement HMAC-SHA256(salt)+Base62 (10 chars, retry on collision) in `api/internal/ids/ids.go`
-- [ ] T020 [US1] Implement `Create` (hash presenter token) and `GetByID` in `api/internal/links/service.go`
-- [ ] T021 [US1] Implement `POST /links` and `GET /links/:id` (400/404 for bad ids) in `api/internal/httpapi/links.go`
-- [ ] T022 [US1] Add HTTP client for create/get in `app/src/app/services/links.service.ts`
-- [ ] T023 [US1] Persist `presenterToken` under `presenterToken:{id}` in `app/src/app/services/presenter-token.store.ts`
-- [ ] T024 [US1] Build home “Gerar link” + copy public URL in `app/src/app/pages/home/home.ts`
-- [ ] T025 [US1] Route `''` to Home in `app/src/app/app.routes.ts`
+- [x] T019 [US1] Implement HMAC-SHA256(salt)+Base62 (10 chars, retry on collision) in `api/internal/ids/ids.go`
+- [x] T020 [US1] Implement `Create` (hash presenter token) and `GetByID` in `api/internal/links/service.go`
+- [x] T021 [US1] Implement `POST /links` and `GET /links/:id` (400/404 for bad ids) in `api/internal/httpapi/links.go`
+- [x] T022 [US1] Add HTTP client for create/get in `app/src/app/services/links.service.ts`
+- [x] T023 [US1] Persist `presenterToken` under `presenterToken:{id}` in `app/src/app/services/presenter-token.store.ts`
+- [x] T024 [US1] Build home “Gerar link” + copy public URL in `app/src/app/pages/home/home.ts`
+- [x] T025 [US1] Route `''` to Home in `app/src/app/app.routes.ts`
 
 **Checkpoint**: US1 independently testable (generate, copy, persist)
 
@@ -97,20 +97,20 @@ tela. Sem token não apresenta. Sem microfone/câmera.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T026 [P] [US2] Add failing contract tests for `POST /links/{id}/presenter-sessions` 201/401/409 in `api/internal/httpapi/presenter_session_contract_test.go`
-- [ ] T027 [P] [US2] Add failing contract tests for `POST /links/{id}/share/start` 200/401/409 in `api/internal/httpapi/share_start_contract_test.go`
-- [ ] T028 [P] [US2] Add failing hub test: only one active presenter per link in `api/internal/room/hub_presenter_test.go`
-- [ ] T029 [P] [US2] Add failing room test: share control only with token, no mic/cam in `app/src/app/pages/room/room.spec.ts`
+- [x] T026 [P] [US2] Add failing contract tests for `POST /links/{id}/presenter-sessions` 201/401/409 in `api/internal/httpapi/presenter_session_contract_test.go`
+- [x] T027 [P] [US2] Add failing contract tests for `POST /links/{id}/share/start` 200/401/409 in `api/internal/httpapi/share_start_contract_test.go`
+- [x] T028 [P] [US2] Add failing hub test: only one active presenter per link in `api/internal/room/hub_presenter_test.go`
+- [x] T029 [P] [US2] Add failing room test: share control only with token, no mic/cam in `app/src/app/pages/room/room.spec.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T030 [US2] Implement `ClaimPresenter` and `StartShare` (hash compare, 409 if presenter exists) in `api/internal/room/hub.go`
-- [ ] T031 [US2] Implement `POST /links/:id/presenter-sessions` and `POST /links/:id/share/start` in `api/internal/httpapi/sessions.go`
-- [ ] T032 [US2] Upgrade `GET /links/:id/events?sessionId=` to WebSocket in `api/internal/httpapi/events.go`
-- [ ] T033 [US2] Add room event client in `app/src/app/services/room-events.service.ts`
-- [ ] T034 [US2] Capture screen with `getDisplayMedia({ video: true, audio: false })` and create offers in `app/src/app/services/webrtc.service.ts`
-- [ ] T035 [US2] Presenter room flow (claim + start share) in `app/src/app/pages/room/room.ts`
-- [ ] T036 [US2] Route `/r/:id` to Room in `app/src/app/app.routes.ts`
+- [x] T030 [US2] Implement `ClaimPresenter` and `StartShare` (hash compare, 409 if presenter exists) in `api/internal/room/hub.go`
+- [x] T031 [US2] Implement `POST /links/:id/presenter-sessions` and `POST /links/:id/share/start` in `api/internal/httpapi/sessions.go`
+- [x] T032 [US2] Upgrade `GET /links/:id/events?sessionId=` to WebSocket in `api/internal/httpapi/events.go`
+- [x] T033 [US2] Add room event client in `app/src/app/services/room-events.service.ts`
+- [x] T034 [US2] Capture screen with `getDisplayMedia({ video: true, audio: false })` and create offers in `app/src/app/services/webrtc.service.ts`
+- [x] T035 [US2] Presenter room flow (claim + start share) in `app/src/app/pages/room/room.ts`
+- [x] T036 [US2] Route `/r/:id` to Room in `app/src/app/app.routes.ts`
 
 **Checkpoint**: US1 + US2 work; presenter can share without voice
 
@@ -126,19 +126,19 @@ botão de apresentar. Id curto/inválido → mensagem de link inválido.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T037 [P] [US3] Add failing contract test for `POST /links/{id}/viewer-sessions` 201 role=viewer in `api/internal/httpapi/viewer_session_contract_test.go`
-- [ ] T038 [P] [US3] Add failing contract tests for GET malformed (400) and unknown (404) ids in `api/internal/httpapi/get_link_invalid_contract_test.go`
-- [ ] T039 [P] [US3] Add failing invalid-link page test in `app/src/app/pages/invalid-link/invalid-link.spec.ts`
+- [x] T037 [P] [US3] Add failing contract test for `POST /links/{id}/viewer-sessions` 201 role=viewer in `api/internal/httpapi/viewer_session_contract_test.go`
+- [x] T038 [P] [US3] Add failing contract tests for GET malformed (400) and unknown (404) ids in `api/internal/httpapi/get_link_invalid_contract_test.go`
+- [x] T039 [P] [US3] Add failing invalid-link page test in `app/src/app/pages/invalid-link/invalid-link.spec.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T040 [US3] Implement `JoinAsViewer` and presence counts in `api/internal/room/hub.go`
-- [ ] T041 [US3] Implement `POST /links/:id/viewer-sessions` in `api/internal/httpapi/sessions.go`
-- [ ] T042 [US3] Relay `signal` / `room.state` / `presence` per `specs/001-screen-share-links/contracts/room-events.md` in `api/internal/room/signal.go`
-- [ ] T043 [US3] Receive-only peer connections (no display capture) in `app/src/app/services/webrtc.service.ts`
-- [ ] T044 [US3] Show waiting copy on the stage when `state=waiting` in `app/src/app/components/stage/stage.ts`
-- [ ] T045 [US3] Build invalid-link page and route `/r/invalid` fallback in `app/src/app/pages/invalid-link/invalid-link.ts`
-- [ ] T046 [US3] Join `/r/:id` as viewer when `sessionStorage` has no token in `app/src/app/pages/room/room.ts`
+- [x] T040 [US3] Implement `JoinAsViewer` and presence counts in `api/internal/room/hub.go`
+- [x] T041 [US3] Implement `POST /links/:id/viewer-sessions` in `api/internal/httpapi/sessions.go`
+- [x] T042 [US3] Relay `signal` / `room.state` / `presence` per `specs/001-screen-share-links/contracts/room-events.md` in `api/internal/room/signal.go`
+- [x] T043 [US3] Receive-only peer connections (no display capture) in `app/src/app/services/webrtc.service.ts`
+- [x] T044 [US3] Show waiting copy on the stage when `state=waiting` in `app/src/app/components/stage/stage.ts`
+- [x] T045 [US3] Build invalid-link page and route `/r/invalid` fallback in `app/src/app/pages/invalid-link/invalid-link.ts`
+- [x] T046 [US3] Join `/r/:id` as viewer when `sessionStorage` has no token in `app/src/app/pages/room/room.ts`
 
 **Checkpoint**: Viewers watch or wait; bad ids never create a room
 
@@ -154,16 +154,16 @@ contagem, copiar link, ausência de voz/chat.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T047 [P] [US4] Add failing control-bar test: copy link, people count, no mic/cam/chat in `app/src/app/components/control-bar/control-bar.spec.ts`
-- [ ] T048 [P] [US4] Add failing stage test: shared video letterboxed, no camera tile in `app/src/app/components/stage/stage.spec.ts`
+- [x] T047 [P] [US4] Add failing control-bar test: copy link, people count, no mic/cam/chat in `app/src/app/components/control-bar/control-bar.spec.ts`
+- [x] T048 [P] [US4] Add failing stage test: shared video letterboxed, no camera tile in `app/src/app/components/stage/stage.spec.ts`
 
 ### Implementation for User Story 4
 
-- [ ] T049 [US4] Add Meet-like dark tokens (stage, bar, chrome) in `app/src/styles.css`
-- [ ] T050 [US4] Layout central stage filling the main area in `app/src/app/components/stage/stage.ts`
-- [ ] T051 [US4] Persistent bottom control bar in `app/src/app/components/control-bar/control-bar.ts`
-- [ ] T052 [US4] Bind `participantCount` from `presence` events in `app/src/app/pages/room/room.ts`
-- [ ] T053 [US4] Copy public `/r/{id}` URL from the bar in `app/src/app/components/control-bar/control-bar.ts`
+- [x] T049 [US4] Add Meet-like dark tokens (stage, bar, chrome) in `app/src/styles.css`
+- [x] T050 [US4] Layout central stage filling the main area in `app/src/app/components/stage/stage.ts`
+- [x] T051 [US4] Persistent bottom control bar in `app/src/app/components/control-bar/control-bar.ts`
+- [x] T052 [US4] Bind `participantCount` from `presence` events in `app/src/app/pages/room/room.ts`
+- [x] T053 [US4] Copy public `/r/{id}` URL from the bar in `app/src/app/components/control-bar/control-bar.ts`
 
 **Checkpoint**: Room looks like a silent meeting; US1–US3 behavior unchanged
 
@@ -179,16 +179,16 @@ fechar aba do host → espera em <5s.
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T054 [P] [US5] Add failing contract test for `POST /links/{id}/share/stop` 200 `state=waiting` and GET still 200 in `api/internal/httpapi/share_stop_contract_test.go`
-- [ ] T055 [P] [US5] Add failing hub test: presenter disconnect broadcasts waiting in `api/internal/room/hub_disconnect_test.go`
+- [x] T054 [P] [US5] Add failing contract test for `POST /links/{id}/share/stop` 200 `state=waiting` and GET still 200 in `api/internal/httpapi/share_stop_contract_test.go`
+- [x] T055 [P] [US5] Add failing hub test: presenter disconnect broadcasts waiting in `api/internal/room/hub_disconnect_test.go`
 
 ### Implementation for User Story 5
 
-- [ ] T056 [US5] Implement `StopShare` persisting `waiting` in `api/internal/links/service.go`
-- [ ] T057 [US5] Implement `POST /links/:id/share/stop` in `api/internal/httpapi/sessions.go`
-- [ ] T058 [US5] On presenter WebSocket close, set waiting and notify viewers in `api/internal/room/hub.go`
-- [ ] T059 [US5] Stop and resume share with the same token in `app/src/app/pages/room/room.ts`
-- [ ] T060 [US5] Return viewers to waiting without reload in `app/src/app/components/stage/stage.ts`
+- [x] T056 [US5] Implement `StopShare` persisting `waiting` in `api/internal/links/service.go`
+- [x] T057 [US5] Implement `POST /links/:id/share/stop` in `api/internal/httpapi/sessions.go`
+- [x] T058 [US5] On presenter WebSocket close, set waiting and notify viewers in `api/internal/room/hub.go`
+- [x] T059 [US5] Stop and resume share with the same token in `app/src/app/pages/room/room.ts`
+- [x] T060 [US5] Return viewers to waiting without reload in `app/src/app/components/stage/stage.ts`
 
 **Checkpoint**: Full session cycle works on one durable link
 
@@ -198,10 +198,65 @@ fechar aba do host → espera em <5s.
 
 **Purpose**: Segurança, suíte e validação do quickstart
 
-- [ ] T061 [P] Confirm logs and error bodies never include salt, raw token, or token hash in `api/internal/httpapi/log.go`
-- [ ] T062 [P] Add `LINK_ID_SALT` placeholder (no real secret) in `api/.env.example`
-- [ ] T063 Run `go test ./...` in `api/` and `npm test` in `app/`
-- [ ] T064 Walk all scenarios in `specs/001-screen-share-links/quickstart.md`
+- [x] T061 [P] Confirm logs and error bodies never include salt, raw token, or token hash in `api/internal/httpapi/log.go`
+- [x] T062 [P] Add `LINK_ID_SALT` placeholder (no real secret) in `api/.env.example`
+- [x] T063 Run `go test ./...` in `api/` and `npm test` in `app/`
+- [x] T064 Walk all scenarios in `specs/001-screen-share-links/quickstart.md`
+
+---
+
+## Phase 9: Analyze remediations (dotenv + token visível)
+
+**Purpose**: Fechar U1/I1/C1 da análise. O sal vive só na API. O Angular
+MUST NOT carregar `.env` nem `LINK_ID_SALT`.
+
+**Independent Test**: `go run ./cmd/server` a partir de `api/` sobe lendo
+`api/.env` sem exportar variáveis no shell. Gerar link mostra o token na
+tela e a URL copiada não o contém.
+
+### Tests ⚠️
+
+> Write these tests FIRST and confirm they FAIL before implementation
+
+- [x] T065 [P] Add failing test that a temp `.env` supplies `LINK_ID_SALT` to `Load` without logging the value in `api/internal/httpapi/dotenv_test.go`
+- [x] T066 [P] [US1] Add failing home test: token is visible after generate and absent from the copied URL in `app/src/app/pages/home/home.spec.ts`
+
+### Implementation
+
+- [x] T067 Load `api/.env` with godotenv **before** `httpapi.Load()` in `api/cmd/server/main.go`; OS env wins; do not log salt or tokens
+- [x] T068 [US1] Show the presenter token once on the home screen after generate (never in the public URL) in `app/src/app/pages/home/home.ts`
+- [x] T069 Document `api/.env` as the local default (shell export still overrides) in `specs/001-screen-share-links/quickstart.md`
+
+**Checkpoint**: `.env` na API funciona; token visível só para quem gerou
+
+---
+
+## Phase 10: Analyze remediations (tela cinza + contador)
+
+**Purpose**: Fechar C1/C2/I1 da análise. Espectador late-join vê a tela;
+`participantCount` só conta WebSocket attached e desce no leave.
+
+**Independent Test**: Com partilha ativa, abrir o link noutro perfil mostra
+o vídeo (não o palco cinza de espera). Fechar a aba do espectador reduz
+o contador nos que ficam.
+
+### Tests ⚠️
+
+> Write these tests FIRST and confirm they FAIL before implementation
+
+- [x] T070 [P] [US3] Document `kind: ready` and `to: presenter` in `specs/001-screen-share-links/contracts/room-events.md`
+- [x] T071 [P] [US3] Add failing test: RelaySignal keeps `kind: ready`; `ResolveSignalTo` rewrites `presenter` in `api/internal/room/signal_test.go`
+- [x] T075 [P] [US4] Add failing hub test: unattached join does not count; viewer leave decrements attached count in `api/internal/room/hub_presence_test.go`
+
+### Implementation
+
+- [x] T072 [US3] Queue WebSocket frames until `OPEN` in `app/src/app/services/room-events.service.ts`
+- [x] T073 [US3] Presenter offers on `ready` without duplicate tracks; ICE queue; STUN in `app/src/app/services/webrtc.service.ts`
+- [x] T074 [US3] Viewer sends `ready` on open if already sharing; presenter offers pending viewers on start in `app/src/app/pages/room/room.ts`
+- [x] T076 [US4] Count/presence only attached sessions; expire unattached HTTP sessions in `api/internal/room/hub.go`
+- [x] T077 [US4] Bind presence without flooring at 1 in `app/src/app/pages/room/room.ts`
+
+**Checkpoint**: Late-join mostra a tela; sair da sala reduz o contador
 
 ---
 
@@ -217,6 +272,8 @@ fechar aba do host → espera em <5s.
 - **US4 (Phase 6)**: depende da sala US2/US3 (só visual)
 - **US5 (Phase 7)**: depende de start share (US2) e viewers (US3)
 - **Polish (Phase 8)**: depois das stories desejadas
+- **Analyze remediations (Phase 9)**: depois da Phase 8; T067 depende de T065; T068 depende de T066
+- **Analyze remediations (Phase 10)**: depois da Phase 9; T072–T074 dependem de T070/T071; T076/T077 dependem de T075
 
 ### User Story Dependencies
 
@@ -240,6 +297,8 @@ fechar aba do host → espera em <5s.
 - Todos os testes de uma story marcados [P] em paralelo
 - US4 testes T047/T048 em paralelo
 - T061 e T062 em paralelo no polish
+- T065 e T066 em paralelo na Phase 9
+- T070, T071 e T075 em paralelo na Phase 10
 
 ---
 
@@ -267,6 +326,15 @@ Task: "T029 room spec in app/src/app/pages/room/room.spec.ts"
 
 ---
 
+## Parallel Example: Phase 9
+
+```bash
+Task: "T065 dotenv test in api/internal/httpapi/dotenv_test.go"
+Task: "T066 home token visibility in app/src/app/pages/home/home.spec.ts"
+```
+
+---
+
 ## Implementation Strategy
 
 ### MVP First (User Story 1 Only)
@@ -286,6 +354,7 @@ Task: "T029 room spec in app/src/app/pages/room/room.spec.ts"
 5. US4 → visual Meet
 6. US5 → encerrar/retomar
 7. Polish + quickstart
+8. Phase 9: dotenv na API + token visível (FR-004)
 
 ### Parallel Team Strategy
 
@@ -301,6 +370,7 @@ Task: "T029 room spec in app/src/app/pages/room/room.spec.ts"
 - [P] = arquivos diferentes, sem depender de task incompleta no mesmo arquivo
 - Constituição 1.3.0: não criar `backend/` nem `frontend/`
 - Token nunca na URL pública; sal nunca em log
+- Dotenv só em `api/`; nunca no `app/` Angular
 - WebRTC só vídeo; sem SFU
 - Commit após cada task ou grupo lógico
 - Parar em qualquer checkpoint para validar a story

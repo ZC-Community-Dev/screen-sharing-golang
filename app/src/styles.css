@@ -1,3 +1,21 @@
-/* You can add global styles to this file, and also import other style files */
-
 @import 'tailwindcss';
+
+@theme {
+  --color-meet-bg: #202124;
+  --color-meet-stage: #3c4043;
+  --color-meet-bar: #202124;
+  --color-meet-muted: #9aa0a6;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--color-meet-bg);
+  color: #fff;
+  font-family:
+    'Google Sans',
+    'Segoe UI',
+    system-ui,
+    sans-serif;
+}
