@@ -1,13 +1,14 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 → 1.1.0
-- Modified principles: none (títulos e regras I–V inalterados)
+- Version change: 1.2.0 → 1.3.0
+- Modified principles: none (títulos I–V inalterados)
 - Added sections: none
 - Removed sections: none
 - Material expansions:
-  - Stack Tecnológica: Tailwind CSS passa a ser a camada canônica de
-    estilo do Angular; outros frameworks CSS exigem emenda
-  - Fluxo de Desenvolvimento: reviews MUST checar Tailwind CSS na stack
+  - Stack Tecnológica: árvores canônicas passam de exemplo
+    (`backend/` / `frontend/`) para `api/` (Go/Gin) e `app/`
+    (Angular); SQLite MUST viver em `api/`
+  - Fluxo de Desenvolvimento: reviews MUST checar `api/` e `app/`
 - Follow-up TODOs: none
 -->
 
@@ -17,7 +18,7 @@ Sync Impact Report
 
 ### I. Separação Cliente-Servidor
 O sistema MUST ser composto por dois artefatos distintos: um backend em
-Go com Gin e um frontend em Angular. A comunicação entre eles MUST
+Go com Gin na pasta `api/` e um frontend em Angular na pasta `app/`. A comunicação entre eles MUST
 ocorrer apenas por APIs HTTP documentadas. Lógica de negócio, autorização
 e persistência MUST residir no backend. O frontend MUST limitar-se a
 apresentação, estado de UI e consumo dos contratos públicos. Código Go
@@ -65,7 +66,9 @@ O desenho MUST começar pelo caminho mais simples que atenda o spec.
 Dependência, camada ou abstração extra MUST ser justificada por
 requisito existente, não por hipótese futura. O backend MUST emitir
 logs estruturados (nível, correlação de request, erro). Segredos MUST
-NOT aparecer em logs, commits ou respostas de API.
+NOT aparecer em logs, commits ou respostas de API. O sal usado na
+geração de identificadores é segredo: MUST NOT ser exposto ao cliente
+nem gravado em log.
 
 **Rationale**: YAGNI reduz custo de mudança; logs estruturados tornam
 falhas de share e API diagnosticáveis sem debugger ad hoc.
@@ -90,14 +93,28 @@ emenda a esta constituição. Estilos pontuais de componente MAY existir
 quando um utilitário Tailwind não cobrir o caso, e MUST permanecer
 excepcionais e justificados no spec ou no plano.
 
-O repositório MUST manter backend e frontend em árvores separadas
-(por exemplo `backend/` e `frontend/`). Dependências de cada lado
-MUST ser geridas pelas ferramentas nativas (Go modules e Angular CLI /
-npm ou equivalente do workspace Angular).
+A persistência de links e credenciais de apresentador MUST usar SQLite
+como único banco desta versão. O arquivo SQLite MUST viver em `api/`.
+PostgreSQL, MySQL, MongoDB ou armazenamento só em memória como fonte
+de verdade dos links MUST NOT substituir o SQLite sem emenda a esta
+constituição.
 
-Bibliotecas auxiliares (validação, CORS, WebSocket, persistência) MAY
-ser adicionadas quando um spec o exigir. Elas MUST NOT substituir Gin,
-Angular nem Tailwind CSS como stack canônica.
+Identificadores públicos de link MUST ser gerados em Base62 (alfabeto
+`0-9`, `A-Z`, `a-z`), com no mínimo 8 caracteres, e MUST incorporar um
+sal secreto do servidor de modo que o id não seja sequencial nem
+previsível. UUIDs, nanoid sem sal, hashes reversíveis da ordem de
+criação, ou alfabetos fora de Base62 MUST NOT substituir este esquema
+sem emenda a esta constituição.
+
+O repositório MUST manter o backend em `api/` e o frontend em `app/`.
+Renomear, fundir ou inverter essas pastas MUST NOT ocorrer sem emenda
+a esta constituição. Dependências de cada lado MUST ser geridas pelas
+ferramentas nativas (Go modules em `api/` e Angular CLI / npm em
+`app/`).
+
+Bibliotecas auxiliares (validação, CORS, WebSocket) MAY ser adicionadas
+quando um spec o exigir. Elas MUST NOT substituir Gin, Angular,
+Tailwind CSS, SQLite nem a geração Base62 com sal como stack canônica.
 
 ## Fluxo de Desenvolvimento
 
@@ -106,9 +123,10 @@ tarefas → implementação. Código de produção MUST NOT ser o primeiro
 artefato de uma feature.
 
 Pull requests e reviews MUST verificar conformidade com esta
-constituição, em especial: stack Go+Gin / Angular / Tailwind CSS,
-contratos HTTP documentados, testes escritos antes da
-implementação, e ausência de segredos.
+constituição, em especial: stack Go+Gin em `api/` / Angular e
+Tailwind CSS em `app/` / SQLite / Base62 com sal, contratos HTTP
+documentados, testes escritos antes da implementação, e ausência de
+segredos (incluindo o sal de identificadores).
 
 Complexidade adicional (novo serviço, novo canal além de HTTP JSON,
 novo framework) MUST ser justificada no plano da feature e, se
@@ -132,4 +150,4 @@ Reviews de conformidade MUST ocorrer a cada feature (specify/plan/
 tasks/implement) e a cada PR. Desvio temporário MUST NOT ser
 silencioso: ou a feature é ajustada, ou a constituição é emendada.
 
-**Version**: 1.1.0 | **Ratified**: 2026-08-17 | **Last Amended**: 2026-08-17
+**Version**: 1.3.0 | **Ratified**: 2026-08-17 | **Last Amended**: 2026-08-17

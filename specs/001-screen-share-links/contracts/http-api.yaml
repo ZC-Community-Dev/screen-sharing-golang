@@ -1,0 +1,267 @@
+openapi: 3.1.0
+info:
+  title: Screen Share Links API
+  version: 1.0.0
+  description: >
+    Contratos HTTP JSON do plano de controle. Mídia WebRTC e eventos ao vivo
+    não trafegam nestes bodies. Token e sal nunca aparecem em respostas de
+    espectador nem em erros.
+servers:
+  - url: /api/v1
+paths:
+  /links:
+    post:
+      operationId: createLink
+      summary: Gera um link público e o token de apresentador
+      responses:
+        "201":
+          description: Link criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateLinkResponse"
+        "500":
+          $ref: "#/components/responses/Error"
+  /links/{id}:
+    get:
+      operationId: getLink
+      summary: Abre um link público (sem token)
+      parameters:
+        - $ref: "#/components/parameters/LinkId"
+      responses:
+        "200":
+          description: Link válido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkPublic"
+        "400":
+          description: Identificador malformado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: Identificador desconhecido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+  /links/{id}/presenter-sessions:
+    post:
+      operationId: claimPresenter
+      summary: Entra na sala como apresentador
+      parameters:
+        - $ref: "#/components/parameters/LinkId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClaimPresenterRequest"
+      responses:
+        "201":
+          description: Sessão de apresentador criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "401":
+          description: Token ausente ou inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Já existe apresentador ativo neste link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+  /links/{id}/viewer-sessions:
+    post:
+      operationId: joinAsViewer
+      summary: Entra na sala como espectador
+      parameters:
+        - $ref: "#/components/parameters/LinkId"
+      responses:
+        "201":
+          description: Sessão de espectador criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400":
+          $ref: "#/components/responses/BadId"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /links/{id}/share/start:
+    post:
+      operationId: startShare
+      summary: Inicia transmissão de tela (só apresentador)
+      parameters:
+        - $ref: "#/components/parameters/LinkId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PresenterAuth"
+      responses:
+        "200":
+          description: Estado sharing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkPublic"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Já há transmissão ativa
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+  /links/{id}/share/stop:
+    post:
+      operationId: stopShare
+      summary: Encerra transmissão; o link permanece válido
+      parameters:
+        - $ref: "#/components/parameters/LinkId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PresenterAuth"
+      responses:
+        "200":
+          description: Estado waiting
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkPublic"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+components:
+  parameters:
+    LinkId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[0-9A-Za-z]{8,}$"
+  responses:
+    BadId:
+      description: Identificador malformado
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+    NotFound:
+      description: Link inexistente
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+    Unauthorized:
+      description: Token ou sessão de apresentador inválidos
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+    Error:
+      description: Erro interno sem segredos
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+  schemas:
+    CreateLinkResponse:
+      type: object
+      additionalProperties: false
+      required: [id, publicUrl, presenterToken]
+      properties:
+        id:
+          type: string
+          minLength: 8
+          pattern: "^[0-9A-Za-z]{8,}$"
+        publicUrl:
+          type: string
+          description: Caminho público da sala, sem token (ex. /r/{id})
+        presenterToken:
+          type: string
+          description: Segredo do apresentador; omitido em qualquer outro endpoint
+    LinkPublic:
+      type: object
+      additionalProperties: false
+      required: [id, state, participantCount]
+      properties:
+        id:
+          type: string
+        state:
+          type: string
+          enum: [waiting, sharing]
+        participantCount:
+          type: integer
+          minimum: 0
+    ClaimPresenterRequest:
+      type: object
+      additionalProperties: false
+      required: [presenterToken]
+      properties:
+        presenterToken:
+          type: string
+    PresenterAuth:
+      type: object
+      additionalProperties: false
+      required: [sessionId, presenterToken]
+      properties:
+        sessionId:
+          type: string
+        presenterToken:
+          type: string
+    SessionResponse:
+      type: object
+      additionalProperties: false
+      required: [sessionId, role, id, state]
+      properties:
+        sessionId:
+          type: string
+        role:
+          type: string
+          enum: [presenter, viewer]
+        id:
+          type: string
+        state:
+          type: string
+          enum: [waiting, sharing]
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - link_not_found
+                - link_invalid
+                - presenter_unauthorized
+                - presenter_conflict
+                - share_conflict
+                - internal_error
+            message:
+              type: string
+              description: Texto seguro para UI; sem token, sal ou hash
