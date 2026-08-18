@@ -2,6 +2,7 @@ import { Component, OnDestroy, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription, firstValueFrom } from 'rxjs';
 
+import { publicOrigin, roomPath } from '../../config';
 import { ControlBar } from '../../components/control-bar/control-bar';
 import { Stage } from '../../components/stage/stage';
 import { LinksService } from '../../services/links.service';
@@ -49,7 +50,7 @@ export class Room implements OnDestroy {
   }
 
   async copyLink() {
-    await navigator.clipboard.writeText(`${window.location.origin}${this.publicUrl()}`);
+    await navigator.clipboard.writeText(`${publicOrigin()}${this.publicUrl()}`);
   }
 
   async startShare() {
@@ -80,7 +81,7 @@ export class Room implements OnDestroy {
       this.id.set(link.id);
       this.state.set(link.state);
       this.applyParticipantCount(link.participantCount);
-      this.publicUrl.set(`/r/${link.id}`);
+      this.publicUrl.set(roomPath(link.id));
       const token = this.tokens.get(id);
       if (token) {
         const session = await firstValueFrom(this.links.claimPresenter(id, token));

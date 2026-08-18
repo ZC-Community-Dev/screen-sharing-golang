@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
+import { publicOrigin } from '../../config';
 import { CreateLinkResponse, LinksService } from '../../services/links.service';
 import { PresenterTokenStore } from '../../services/presenter-token.store';
 
@@ -25,7 +26,7 @@ export class Home {
       const created = await firstValueFrom(this.links.create());
       this.tokens.save(created.id, created.presenterToken);
       this.created.set(created);
-      const url = `${window.location.origin}${created.publicUrl}`;
+      const url = `${publicOrigin()}${created.publicUrl}`;
       await navigator.clipboard.writeText(url);
     } catch {
       this.error.set('Não foi possível gerar o link.');

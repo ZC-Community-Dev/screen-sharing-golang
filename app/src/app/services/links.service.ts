@@ -1,6 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 
+import { apiPath } from '../config';
+
 export interface CreateLinkResponse {
   id: string;
   publicUrl: string;
@@ -25,32 +27,32 @@ export class LinksService {
   private readonly http = inject(HttpClient);
 
   create() {
-    return this.http.post<CreateLinkResponse>('/api/v1/links', {});
+    return this.http.post<CreateLinkResponse>(apiPath('/links'), {});
   }
 
   get(id: string) {
-    return this.http.get<LinkPublic>(`/api/v1/links/${id}`);
+    return this.http.get<LinkPublic>(apiPath(`/links/${id}`));
   }
 
   claimPresenter(id: string, presenterToken: string) {
-    return this.http.post<SessionResponse>(`/api/v1/links/${id}/presenter-sessions`, {
+    return this.http.post<SessionResponse>(apiPath(`/links/${id}/presenter-sessions`), {
       presenterToken,
     });
   }
 
   joinViewer(id: string) {
-    return this.http.post<SessionResponse>(`/api/v1/links/${id}/viewer-sessions`, {});
+    return this.http.post<SessionResponse>(apiPath(`/links/${id}/viewer-sessions`), {});
   }
 
   startShare(id: string, sessionId: string, presenterToken: string) {
-    return this.http.post<LinkPublic>(`/api/v1/links/${id}/share/start`, {
+    return this.http.post<LinkPublic>(apiPath(`/links/${id}/share/start`), {
       sessionId,
       presenterToken,
     });
   }
 
   stopShare(id: string, sessionId: string, presenterToken: string) {
-    return this.http.post<LinkPublic>(`/api/v1/links/${id}/share/stop`, {
+    return this.http.post<LinkPublic>(apiPath(`/links/${id}/share/stop`), {
       sessionId,
       presenterToken,
     });

@@ -9,6 +9,7 @@ const (
 	CodePresenterConflict     = "presenter_conflict"
 	CodeShareConflict         = "share_conflict"
 	CodeInternalError         = "internal_error"
+	CodeRouteNotFound         = "route_not_found"
 )
 
 type errorBody struct {

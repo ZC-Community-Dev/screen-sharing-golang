@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 
 	"api/internal/db"
+	"api/internal/web"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,7 +23,16 @@ func testServer(t *testing.T) *Server {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = database.Close() })
-	return New(Config{Salt: "test-salt-value", CORSOrigins: []string{"http://localhost:4200"}}, database, NewLogger())
+	frontend, err := web.NewHandler(os.DirFS("../web/testdata/site"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return NewWithFrontend(
+		Config{Salt: "test-salt-value", CORSOrigins: []string{"http://localhost:4200"}},
+		database,
+		NewLogger(),
+		frontend,
+	)
 }
 
 func doJSON(t *testing.T, srv *Server, method, path string, body any) *httptest.ResponseRecorder {

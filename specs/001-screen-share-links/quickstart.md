@@ -31,6 +31,11 @@ npm start
 API em `http://127.0.0.1:8080`. UI em `http://127.0.0.1:4200` com proxy
 para `/api`.
 
+O `ng serve` usa `app/src/environments/environment.development.ts`
+(`apiBaseUrl: '/api/v1'`, `roomPathPrefix`, `stunUrls`, `appOrigin`).
+O build de produção usa `environment.ts`. Nenhum dos dois arquivos
+MUST conter `LINK_ID_SALT` ou o token de apresentador.
+
 ## Validation scenarios
 
 ### 1. Gerar e copiar link (P1)

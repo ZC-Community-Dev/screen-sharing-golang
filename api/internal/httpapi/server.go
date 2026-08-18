@@ -3,6 +3,8 @@ package httpapi
 import (
 	"database/sql"
 	"log/slog"
+	"net/http"
+	"strings"
 
 	"api/internal/links"
 	"api/internal/room"
@@ -19,6 +21,15 @@ type Server struct {
 }
 
 func New(cfg Config, database *sql.DB, logger *slog.Logger) *Server {
+	return NewWithFrontend(cfg, database, logger, nil)
+}
+
+func NewWithFrontend(
+	cfg Config,
+	database *sql.DB,
+	logger *slog.Logger,
+	frontend http.Handler,
+) *Server {
 	if logger == nil {
 		logger = NewLogger()
 	}
@@ -43,6 +54,20 @@ func New(cfg Config, database *sql.DB, logger *slog.Logger) *Server {
 	v1.POST("/links/:id/share/start", s.startShare)
 	v1.POST("/links/:id/share/stop", s.stopShare)
 	v1.GET("/links/:id/events", s.events)
+	if frontend != nil {
+		r.NoRoute(func(c *gin.Context) {
+			requestPath := c.Request.URL.Path
+			if requestPath == "/api" || strings.HasPrefix(requestPath, "/api/") {
+				writeError(c, http.StatusNotFound, CodeRouteNotFound, "route not found")
+				return
+			}
+			if c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead {
+				c.Status(http.StatusNotFound)
+				return
+			}
+			frontend.ServeHTTP(c.Writer, c.Request)
+		})
+	}
 	s.Engine = r
 	return s
 }

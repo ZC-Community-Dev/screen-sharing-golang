@@ -5,6 +5,7 @@ import (
 
 	"api/internal/db"
 	"api/internal/httpapi"
+	"api/internal/web"
 )
 
 func main() {
@@ -18,6 +19,16 @@ func main() {
 		logger.Error("config", "err", err.Error())
 		os.Exit(1)
 	}
+	frontendFiles, err := web.Embedded()
+	if err != nil {
+		logger.Error("frontend", "err", err.Error())
+		os.Exit(1)
+	}
+	frontend, err := web.NewHandler(frontendFiles)
+	if err != nil {
+		logger.Error("frontend", "err", err.Error())
+		os.Exit(1)
+	}
 	database, err := db.Open(cfg.DBPath)
 	if err != nil {
 		logger.Error("sqlite", "err", err.Error())
@@ -25,7 +36,7 @@ func main() {
 	}
 	defer database.Close()
 
-	srv := httpapi.New(cfg, database, logger)
+	srv := httpapi.NewWithFrontend(cfg, database, logger, frontend)
 	addr := ":" + cfg.Port
 	logger.Info("listen", "addr", addr)
 	if err := srv.Engine.Run(addr); err != nil {

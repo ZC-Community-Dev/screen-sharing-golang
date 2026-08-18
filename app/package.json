@@ -4,9 +4,10 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build",
+    "build": "ng build && node scripts/copy-to-api.mjs",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "test:build-script": "node --test scripts/copy-to-api.test.mjs"
   },
   "private": true,
   "packageManager": "npm@11.6.2",

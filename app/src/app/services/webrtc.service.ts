@@ -1,5 +1,7 @@
 import { Injectable } from '@angular/core';
 
+import { iceServers } from '../config';
+
 @Injectable({ providedIn: 'root' })
 export class WebrtcService {
   private local?: MediaStream;
@@ -102,7 +104,7 @@ export class WebrtcService {
       return existing;
     }
     const peer = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+      iceServers: iceServers(),
     });
     peer.onicecandidate = (event) => {
       if (event.candidate) {

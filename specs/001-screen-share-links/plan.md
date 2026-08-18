@@ -40,7 +40,11 @@ espera em <5s (SC-008); gerar+copiar link em <30s (SC-001)
 
 **Constraints**: sem contas; sem voz/câmera/chat; um apresentador por
 link; token fora da URL; sal e token fora de logs; ids Base62+sal;
-SQLite como única fonte de verdade dos links
+SQLite como única fonte de verdade dos links.
+Config pública do Angular vive em `app/src/environments/`
+(`environment.ts` / `environment.development.ts`): `apiBaseUrl`,
+`roomPathPrefix`, `stunUrls`, `appOrigin`. Segredos (`LINK_ID_SALT`,
+token) MUST NOT entrar nesses arquivos — só em `api/.env`.
 
 **Scale/Scope**: ≥10 espectadores simultâneos no mesmo link (malha
 WebRTC); sem SFU nesta versão
@@ -55,7 +59,7 @@ WebRTC); sem SFU nesta versão
 | II. Contrato HTTP JSON | PASS | [contracts/http-api.yaml](./contracts/http-api.yaml) |
 | III. Testes primeiro | PASS | Quickstart e plano exigem `go test` / `npm test` antes de handlers de produção |
 | IV. Integração na fronteira | PASS | Contratos + testes httptest no Gin real e fluxo Angular → HTTP |
-| V. Simplicidade e observabilidade | PASS | Sem SFU/contas; logs estruturados; sal/token proibidos em log |
+| V. Simplicidade e observabilidade | PASS | Sem SFU/contas; logs estruturados; sal/token proibidos em log e no `app/src/environments/` |
 | Stack Go+Gin / Angular / Tailwind | PASS | Go+Gin em `api/`; Angular + Tailwind 4 em `app/` |
 | Árvores canônicas `api/` e `app/` | PASS | Constituição 1.3.0; sem `backend/` nem `frontend/` |
 | SQLite canônico | PASS | `modernc.org/sqlite`, arquivo em `api/data/links.db` |
@@ -65,7 +69,9 @@ WebRTC); sem SFU nesta versão
 **Post-design re-check**: os contratos HTTP cobrem criação, abertura,
 claim, join, start e stop. WebSocket só transporta presença/estado/SDP.
 Nenhum body de espectador inclui token. Layout permanece `api/` +
-`app/` (v1.3.0). Gate permanece PASS com a justificativa de mídia
+`app/` (v1.3.0). Environments Angular são só config pública de compile
+time (fileReplacements); não são dotenv e MUST NOT carregar
+`LINK_ID_SALT`. Gate permanece PASS com a justificativa de mídia
 abaixo.
 
 ## Project Structure
@@ -100,12 +106,16 @@ api/
 
 app/
 ├── src/app/
+│   ├── config.ts        # lê environment (api/ws/stun/origin)
 │   ├── pages/home/      # botão gerar link
 │   ├── pages/room/      # palco + barra (Meet-like, sem voz)
 │   ├── pages/invalid-link/
 │   ├── components/stage/
 │   ├── components/control-bar/
 │   └── services/        # links, room events, webrtc (vídeo only)
+├── src/environments/
+│   ├── environment.ts                 # produção (público)
+│   └── environment.development.ts     # ng serve (proxy /api)
 └── src/styles.css       # @import 'tailwindcss'
 ```
 

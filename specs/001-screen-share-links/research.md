@@ -137,3 +137,29 @@ permissão de tela; automatizar isso agora viola YAGNI.
 
 - Playwright com fake media: útil depois; não bloqueia o plano.
 - Sem testes de contrato: viola a constituição.
+
+## 9. Configuração do Angular vs segredos da API
+
+**Decision**: as principais opções **públicas** do cliente ficam em
+`app/src/environments/environment.ts` (produção) e
+`environment.development.ts` (`ng serve`, fileReplacements). Campos:
+`production`, `apiBaseUrl`, `roomPathPrefix`, `stunUrls`, `appOrigin`.
+Helpers em `app/src/app/config.ts` montam HTTP, WebSocket e ICE.
+Segredos do servidor (`LINK_ID_SALT`, `LINKS_DB_PATH`, `PORT`)
+permanecem só em `api/.env`.
+
+**Rationale**: o utilizador gerou os environments no `app/`. File
+replacement do Angular é compile-time, não dotenv. A constituição
+proíbe expor o sal ao cliente; environments Angular MUST NOT
+duplicar `LINK_ID_SALT` nem o token de apresentador. Em dev,
+`apiBaseUrl: '/api/v1'` usa o proxy já existente.
+
+**Alternatives considered**:
+
+- Dotenv no Angular (`@ngx-env`, `app/.env`): mistura com o
+  `api/.env` e aumenta o risco de copiar o sal para o bundle.
+- Hardcode `/api/v1` e STUN nos serviços: funciona, mas impede
+  apontar o build de produção para outro host sem editar código.
+- URL absoluta `http://127.0.0.1:8080/api/v1` no development:
+  bypassa o proxy e depende de CORS/WS origin; o proxy same-origin
+  é o default mais simples.

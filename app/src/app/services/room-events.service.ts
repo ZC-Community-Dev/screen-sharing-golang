@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
+import { eventsWsUrl } from '../config';
+
 export interface RoomEvent {
   type: 'room.state' | 'presence' | 'signal';
   from?: string;
@@ -15,10 +17,7 @@ export class RoomEventsService {
 
   connect(id: string, sessionId: string): Observable<RoomEvent> {
     return new Observable((subscriber) => {
-      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-      const socket = new WebSocket(
-        `${proto}://${location.host}/api/v1/links/${id}/events?sessionId=${encodeURIComponent(sessionId)}`,
-      );
+      const socket = new WebSocket(eventsWsUrl(id, sessionId));
       this.socket = socket;
       this.pending = [];
       socket.onopen = () => {
