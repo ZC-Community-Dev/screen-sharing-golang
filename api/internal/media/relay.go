@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	pliInterval    = 3 * time.Second
+	pliInterval    = 2 * time.Second
 	rtpIdleTimeout = 15 * time.Second
 )
 
@@ -42,8 +42,20 @@ func NewRelay(remote *webrtc.TrackRemote, publisher *webrtc.PeerConnection, onSt
 }
 
 func (r *Relay) Start() {
+	r.RequestKeyframe()
 	go r.forward()
 	go r.feedback()
+}
+
+func (r *Relay) RequestKeyframe() {
+	if r == nil || r.publisher == nil || r.remote == nil {
+		return
+	}
+	ssrc := uint32(r.remote.SSRC())
+	_ = r.publisher.WriteRTCP([]rtcp.Packet{
+		&rtcp.PictureLossIndication{MediaSSRC: ssrc},
+		&rtcp.FullIntraRequest{SenderSSRC: ssrc, MediaSSRC: ssrc},
+	})
 }
 
 func (r *Relay) forward() {
@@ -75,9 +87,7 @@ func (r *Relay) feedback() {
 				r.Close()
 				return
 			}
-			if r.publisher != nil {
-				_ = r.publisher.WriteRTCP([]rtcp.Packet{&rtcp.PictureLossIndication{MediaSSRC: uint32(r.remote.SSRC())}})
-			}
+			r.RequestKeyframe()
 		}
 	}
 }

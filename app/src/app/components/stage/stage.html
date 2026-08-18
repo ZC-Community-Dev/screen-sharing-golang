@@ -1,29 +1,52 @@
 <section class="flex min-h-0 flex-1 items-center justify-center bg-meet-stage px-6">
-  @if (state() === 'waiting') {
+  @if (state() === 'waiting' && !playback()) {
     <p data-testid="waiting" class="text-center text-lg text-meet-muted">
       Aguardando o apresentador compartilhar a tela
+    </p>
+  } @else if (state() === 'failed' && !playback()) {
+    <p data-testid="failed" class="text-center text-lg text-red-300">
+      Não foi possível conectar à transmissão. Tente novamente.
+    </p>
+  } @else if (playback()) {
+    <div class="relative flex max-h-full max-w-full items-center justify-center">
+      <video
+        #screen
+        data-testid="shared-screen"
+        class="max-h-full max-w-full object-contain"
+        autoplay
+        playsinline
+        muted
+        (loadedmetadata)="seekLiveEdge(screen)"
+        (progress)="seekLiveEdge(screen)"
+        (playing)="seekLiveEdge(screen)"
+      ></video>
+      @if (state() === 'connecting') {
+        <p
+          data-testid="connecting"
+          class="pointer-events-none absolute inset-x-0 bottom-4 text-center text-sm text-meet-muted"
+        >
+          Conectando à tela…
+        </p>
+      } @else if (state() === 'reconnecting') {
+        <p
+          data-testid="reconnecting"
+          class="pointer-events-none absolute inset-x-0 bottom-4 text-center text-sm text-meet-muted"
+        >
+          Reconectando à transmissão…
+        </p>
+      }
+    </div>
+  } @else if (state() === 'reconnecting') {
+    <p data-testid="reconnecting" class="text-center text-lg text-meet-muted">
+      Reconectando à transmissão…
     </p>
   } @else if (state() === 'failed') {
     <p data-testid="failed" class="text-center text-lg text-red-300">
       Não foi possível conectar à transmissão. Tente novamente.
     </p>
-  } @else if (state() === 'reconnecting') {
-    <p data-testid="reconnecting" class="text-center text-lg text-meet-muted">
-      Reconectando à transmissão…
-    </p>
-  } @else if (state() === 'connecting' || !playback()) {
+  } @else {
     <p data-testid="connecting" class="text-center text-lg text-meet-muted">
       Conectando à tela…
     </p>
-  } @else {
-    <video
-      #screen
-      data-testid="shared-screen"
-      class="max-h-full max-w-full object-contain"
-      autoplay
-      playsinline
-      muted
-      (loadedmetadata)="seekLiveEdge(screen)"
-    ></video>
   }
 </section>

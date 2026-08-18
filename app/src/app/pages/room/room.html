@@ -11,6 +11,11 @@
       [selected]="selectedTransport()"
       (selectedChange)="selectedTransport.set($event)"
     />
+    @if (selectedTransport() === 'webrtc' && webrtcUdpMayBeUnreachable()) {
+      <p role="note" class="bg-amber-950 px-6 py-2 text-center text-sm text-amber-100">
+        WebRTC/UDP não passa pelo Cloudflare. Na internet, use WebSocket / HTTPS.
+      </p>
+    }
   }
   <app-control-bar
     [participantCount]="participantCount()"

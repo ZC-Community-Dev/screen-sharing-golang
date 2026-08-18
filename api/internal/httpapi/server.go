@@ -12,7 +12,6 @@ import (
 	"api/internal/media"
 	"api/internal/room"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -49,7 +48,9 @@ func NewWithFrontend(
 		Tickets: media.NewTicketStore(30*time.Second, time.Now),
 	}
 	s.Media = media.NewManagerWithFactory(func() (*media.Engine, error) {
-		return media.NewEngine(media.EngineConfig{UDPPort: cfg.MediaUDPPort, PublicIP: cfg.MediaPublicIP})
+		return media.NewEngine(media.EngineConfig{
+			UDPPort: cfg.MediaUDPPort, PublicIP: cfg.MediaPublicIP, MTU: cfg.MediaUDPMTU,
+		})
 	}, media.Limits{MaxRooms: cfg.MediaMaxRooms, MaxViewersPerRoom: cfg.MediaMaxViewersPerRoom})
 	s.Media.SetCallbacks(func(linkID string, state media.State) {
 		s.Hub.BroadcastState(linkID, string(state))
@@ -64,13 +65,7 @@ func NewWithFrontend(
 		})
 	})
 	r := gin.New()
-	r.Use(gin.Recovery(), RequestLog(logger))
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     cfg.CORSOrigins,
-		AllowMethods:     []string{"GET", "POST", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "X-Room-Session-ID"},
-		AllowCredentials: false,
-	}))
+	r.Use(gin.Recovery(), RequestLog(logger), s.corsMiddleware())
 	v1 := r.Group("/api/v1")
 	v1.POST("/links", s.createLink)
 	v1.GET("/links/:id", s.getLink)

@@ -56,3 +56,41 @@ func TestV2EventsRejectParticipantSignalingAndV1IsRetired(t *testing.T) {
 		t.Fatalf("v1 status=%d body=%s", v1.Code, v1.Body.String())
 	}
 }
+
+func TestV2EventsAcceptsPublicOriginAndRejectsCrossSite(t *testing.T) {
+	srv := testServer(t)
+	srv.Config.CORSOrigins = []string{"https://example.local"}
+	link := createLink(t, srv)
+	join := doJSON(t, srv, http.MethodPost, "/api/v2/links/"+link.ID+"/viewer-sessions", nil)
+	second := doJSON(t, srv, http.MethodPost, "/api/v2/links/"+link.ID+"/viewer-sessions", nil)
+	var session, other sessionResponse
+	if err := json.Unmarshal(join.Body.Bytes(), &session); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(second.Body.Bytes(), &other); err != nil {
+		t.Fatal(err)
+	}
+
+	httpServer := httptest.NewServer(srv.Engine)
+	defer httpServer.Close()
+	eventsURL := func(sessionID string) string {
+		return "ws" + strings.TrimPrefix(httpServer.URL, "http") + "/api/v2/links/" + link.ID + "/events?sessionId=" + sessionID
+	}
+
+	_, response, err := websocket.DefaultDialer.Dial(eventsURL(session.SessionID), http.Header{"Origin": []string{"https://attacker.invalid"}})
+	if err == nil || response == nil || response.StatusCode != http.StatusForbidden {
+		t.Fatalf("cross-site origin response=%v err=%v", response, err)
+	}
+
+	conn, _, err := websocket.DefaultDialer.Dial(eventsURL(session.SessionID), http.Header{"Origin": []string{"https://example.local"}})
+	if err != nil {
+		t.Fatalf("public origin behind proxy must upgrade: %v", err)
+	}
+	conn.Close()
+
+	sameOrigin, _, err := websocket.DefaultDialer.Dial(eventsURL(other.SessionID), http.Header{"Origin": []string{httpServer.URL}})
+	if err != nil {
+		t.Fatalf("same-origin upgrade: %v", err)
+	}
+	sameOrigin.Close()
+}

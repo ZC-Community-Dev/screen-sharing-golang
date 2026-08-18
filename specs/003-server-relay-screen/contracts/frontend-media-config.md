@@ -1,8 +1,8 @@
 # Frontend Media Configuration
 
 Configuração pública de deploy em
-`app/src/environments/environment*.ts`. Não contém token, IP público,
-porta UDP nem limite operacional privado.
+`app/src/environments/environment*.ts`. Não contém token, salt nem
+limites operacionais privados do processo Go.
 
 ```typescript
 type MediaTransport = 'webrtc' | 'websocket';
@@ -10,6 +10,9 @@ type MediaTransport = 'webrtc' | 'websocket';
 interface PublicMediaEnvironment {
   allowedMediaTransports: readonly MediaTransport[];
   defaultMediaTransport: MediaTransport;
+  mediaUdpHost: string;
+  mediaUdpPort: number;
+  mediaUdpMtu: number;
 }
 ```
 
@@ -18,7 +21,17 @@ Exemplo:
 ```typescript
 allowedMediaTransports: ['webrtc', 'websocket'],
 defaultMediaTransport: 'webrtc',
+mediaUdpHost: '192.168.10.108',
+mediaUdpPort: 5000,
+mediaUdpMtu: 1200,
 ```
+
+`mediaUdpHost` vazio preserva o SDP do servidor. Quando preenchido com um
+IPv4, o cliente reescreve `c=` e candidates `typ host` da resposta ICE
+Lite para esse endereço e `mediaUdpPort` (que deve coincidir com
+`MEDIA_UDP_PORT`). `mediaUdpMtu` (padrão 1200) é o teto do datagrama UDP;
+o cliente limita bitrate/packetização para não fragmentar. Isso não cria
+STUN/TURN nem conexão P2P.
 
 ## Validação
 

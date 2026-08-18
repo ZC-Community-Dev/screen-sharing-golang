@@ -7,9 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -131,7 +129,9 @@ func (s *Server) createMediaWebSocketTicket(c *gin.Context) {
 
 	raw, ticket, err := s.Tickets.Issue(claims)
 	if err != nil {
-		cleanup()
+		if cleanup != nil {
+			cleanup()
+		}
 		writeError(c, http.StatusInternalServerError, CodeInternalError, "could not issue media ticket")
 		return
 	}
@@ -470,35 +470,6 @@ func (s *Server) cleanupTicketClaim(ticket media.Ticket) {
 func ticketKey(raw string) string {
 	hash := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(hash[:])
-}
-
-func (s *Server) validMediaOrigin(request *http.Request) bool {
-	raw := request.Header.Get("Origin")
-	origin, err := url.Parse(raw)
-	if err != nil || origin.Scheme == "" || origin.Host == "" {
-		return false
-	}
-	if origin.Host == request.Host && (origin.Scheme == "http" || origin.Scheme == "https") {
-		return true
-	}
-	requestHost := request.Host
-	if host, _, err := net.SplitHostPort(request.Host); err == nil {
-		requestHost = host
-	}
-	requestHost = strings.Trim(requestHost, "[]")
-	requestIP := net.ParseIP(requestHost)
-	if requestHost != "localhost" && (requestIP == nil || !requestIP.IsLoopback()) {
-		return false
-	}
-	for _, allowed := range s.Config.CORSOrigins {
-		allowedURL, _ := url.Parse(allowed)
-		allowedHost := allowedURL.Hostname()
-		allowedIP := net.ParseIP(allowedHost)
-		if raw == allowed && (allowedHost == "localhost" || (allowedIP != nil && allowedIP.IsLoopback())) {
-			return true
-		}
-	}
-	return false
 }
 
 func hasSubprotocol(request *http.Request, expected string) bool {

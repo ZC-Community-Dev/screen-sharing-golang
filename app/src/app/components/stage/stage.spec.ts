@@ -32,13 +32,25 @@ describe('Stage', () => {
     expect(el.querySelector('[data-testid="shared-screen"]')).toBeNull();
   });
 
-  it.each([
-    ['reconnecting', 'Reconectando'],
-    ['failed', 'Não foi possível'],
-  ] as const)('shows the %s media state without a stale video', async (state, copy) => {
-    const fixture = await render(state, { kind: 'stream', stream: {} as MediaStream });
+  it('keeps the video mounted while connecting so MediaSource can attach', async () => {
+    const fixture = await render('connecting', { kind: 'url', url: 'blob:screen-share' });
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.textContent).toContain(copy);
+    expect(el.querySelector('[data-testid="shared-screen"]')).toBeTruthy();
+    expect(el.querySelector('[data-testid="connecting"]')?.textContent).toContain('Conectando');
+  });
+
+  it('keeps the last frame while reconnecting', async () => {
+    const stream = { getTracks: () => [] } as unknown as MediaStream;
+    const fixture = await render('reconnecting', { kind: 'stream', stream });
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('[data-testid="shared-screen"]')).toBeTruthy();
+    expect(el.textContent).toContain('Reconectando');
+  });
+
+  it('hides a stale video after failure', async () => {
+    const fixture = await render('failed', null);
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain('Não foi possível');
     expect(el.querySelector('[data-testid="shared-screen"]')).toBeNull();
   });
 

@@ -11,13 +11,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		origin := r.Header.Get("Origin")
-		return origin == "" ||
-			origin == "http://localhost:4200" ||
-			origin == "http://127.0.0.1:4200"
-	},
+func (s *Server) eventsUpgrader() websocket.Upgrader {
+	return websocket.Upgrader{CheckOrigin: s.allowWebSocketOrigin}
 }
 
 func (s *Server) eventsV1(c *gin.Context) {
@@ -48,6 +43,7 @@ func (s *Server) eventsV2(c *gin.Context) {
 		writeError(c, http.StatusUnauthorized, CodePresenterUnauthorized, "unknown session")
 		return
 	}
+	upgrader := s.eventsUpgrader()
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		return

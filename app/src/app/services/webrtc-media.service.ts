@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
+import { applyMediaUdpHost, applyMediaUdpMtu, mediaIceConfiguration, mediaUdpSendEncodings } from '../config';
 import { LinksService, SessionDescription } from './links.service';
 import { MediaConnectionState } from './media-transport';
 
@@ -15,6 +16,10 @@ interface ActiveSession {
 }
 
 const RECONNECT_DELAYS_MS = [500, 1000, 2000] as const;
+const DISCONNECT_GRACE_MS = 4000;
+const ICE_CONNECT_TIMEOUT_MS = 8000;
+
+type KeyframeSender = RTCRtpSender & { generateKeyFrame?: () => Promise<void> };
 
 @Injectable({ providedIn: 'root' })
 export class WebRtcMediaService {
@@ -25,6 +30,8 @@ export class WebRtcMediaService {
   private mediaSessionId = '';
   private reconnectAttempt = 0;
   private reconnectTimer?: ReturnType<typeof setTimeout>;
+  private disconnectTimer?: ReturnType<typeof setTimeout>;
+  private iceTimer?: ReturnType<typeof setTimeout>;
   private generation = 0;
 
   async publish(
@@ -69,25 +76,30 @@ export class WebRtcMediaService {
     if (!active) return;
     const generation = this.generation;
     active.onState?.(state);
-    const peer = new RTCPeerConnection();
+    const peer = new RTCPeerConnection(mediaIceConfiguration());
     this.peer = peer;
     peer.onconnectionstatechange = () => {
       if (this.peer !== peer || generation !== this.generation) return;
       if (peer.connectionState === 'connected') {
         this.reconnectAttempt = 0;
+        this.clearDisconnectTimer();
+        this.clearIceTimer();
+        this.requestKeyframe(peer);
         active.onState?.('connected');
-      } else if (peer.connectionState === 'failed' || peer.connectionState === 'disconnected') {
+      } else if (peer.connectionState === 'failed') {
         this.scheduleReconnect();
+      } else if (peer.connectionState === 'disconnected') {
+        this.deferReconnectWhileDisconnected(peer, generation);
       }
     };
 
     if (active.role === 'publisher') {
       const track = this.local?.getVideoTracks()[0];
       if (!track || !this.local) throw new Error('A captura de tela foi encerrada.');
-      const transceiver = peer.addTransceiver(track, {
-        direction: 'sendonly',
-        streams: [this.local],
-      });
+      if ('contentHint' in track) {
+        (track as MediaStreamTrack & { contentHint?: string }).contentHint = 'detail';
+      }
+      const transceiver = this.addPublisherTransceiver(peer, track);
       this.preferVp8(transceiver);
     } else {
       const transceiver = peer.addTransceiver('video', { direction: 'recvonly' });
@@ -101,7 +113,10 @@ export class WebRtcMediaService {
 
     try {
       const offer = await peer.createOffer();
-      await peer.setLocalDescription(offer);
+      await peer.setLocalDescription({
+        type: 'offer',
+        sdp: applyMediaUdpMtu(offer.sdp ?? ''),
+      });
       await this.waitForIceGathering(peer);
       if (this.peer !== peer || generation !== this.generation || !this.active) {
         peer.close();
@@ -124,7 +139,11 @@ export class WebRtcMediaService {
               }),
             );
       this.mediaSessionId = response.mediaSessionId;
-      await peer.setRemoteDescription(response.answer);
+      await peer.setRemoteDescription({
+        type: response.answer.type,
+        sdp: applyMediaUdpHost(response.answer.sdp),
+      });
+      this.armIceTimeout(peer, generation, active);
     } catch (error) {
       if (this.peer === peer && generation === this.generation) {
         peer.close();
@@ -132,6 +151,61 @@ export class WebRtcMediaService {
       }
       throw error;
     }
+  }
+
+  private addPublisherTransceiver(peer: RTCPeerConnection, track: MediaStreamTrack) {
+    const options: RTCRtpTransceiverInit = {
+      direction: 'sendonly',
+      streams: this.local ? [this.local] : undefined,
+      sendEncodings: mediaUdpSendEncodings(),
+    };
+    try {
+      return peer.addTransceiver(track, options);
+    } catch {
+      return peer.addTransceiver(track, { direction: 'sendonly', streams: this.local ? [this.local] : undefined });
+    }
+  }
+
+  private requestKeyframe(peer: RTCPeerConnection) {
+    for (const sender of peer.getSenders()) {
+      void (sender as KeyframeSender).generateKeyFrame?.();
+    }
+  }
+
+  private armIceTimeout(peer: RTCPeerConnection, generation: number, active: ActiveSession) {
+    this.clearIceTimer();
+    this.iceTimer = setTimeout(() => {
+      this.iceTimer = undefined;
+      if (this.peer !== peer || generation !== this.generation) return;
+      if (peer.connectionState === 'connected') return;
+      this.generation += 1;
+      this.clearDisconnectTimer();
+      peer.close();
+      this.peer = undefined;
+      void this.deleteSubscriber();
+      active.onState?.('failed');
+    }, ICE_CONNECT_TIMEOUT_MS);
+  }
+
+  private clearIceTimer() {
+    if (this.iceTimer) clearTimeout(this.iceTimer);
+    this.iceTimer = undefined;
+  }
+
+  private deferReconnectWhileDisconnected(peer: RTCPeerConnection, generation: number) {
+    if (this.disconnectTimer || this.reconnectTimer) return;
+    this.disconnectTimer = setTimeout(() => {
+      this.disconnectTimer = undefined;
+      if (this.peer !== peer || generation !== this.generation) return;
+      if (peer.connectionState === 'disconnected' || peer.connectionState === 'failed') {
+        this.scheduleReconnect();
+      }
+    }, DISCONNECT_GRACE_MS);
+  }
+
+  private clearDisconnectTimer() {
+    if (this.disconnectTimer) clearTimeout(this.disconnectTimer);
+    this.disconnectTimer = undefined;
   }
 
   private scheduleReconnect() {
@@ -159,6 +233,8 @@ export class WebRtcMediaService {
 
   private async reset(notify: boolean) {
     this.generation += 1;
+    this.clearDisconnectTimer();
+    this.clearIceTimer();
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = undefined;
     await this.deleteSubscriber();

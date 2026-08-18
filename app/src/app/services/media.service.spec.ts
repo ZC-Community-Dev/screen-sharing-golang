@@ -18,9 +18,10 @@ class FakePeerConnection {
   ontrack: ((event: RTCTrackEvent) => void) | null = null;
   readonly addTrack = vi.fn();
   readonly addTransceiver = vi.fn(() => ({ setCodecPreferences: vi.fn() }));
+  readonly getSenders = vi.fn(() => []);
   readonly close = vi.fn();
 
-  constructor() {
+  constructor(readonly configuration?: RTCConfiguration) {
     FakePeerConnection.instances.push(this);
   }
 
@@ -85,7 +86,11 @@ describe('MediaService', () => {
     expect(stream).toBe(display);
     expect(FakePeerConnection.instances).toHaveLength(1);
     const peer = FakePeerConnection.instances[0];
-    expect(peer.addTransceiver).toHaveBeenCalledWith(videoTrack, { direction: 'sendonly', streams: [display] });
+    expect(peer.configuration).toEqual({ iceServers: [], iceCandidatePoolSize: 0 });
+    expect(peer.addTransceiver).toHaveBeenCalledWith(
+      videoTrack,
+      expect.objectContaining({ direction: 'sendonly', streams: [display] }),
+    );
     expect(links.createPublisher).toHaveBeenCalledWith('link-1', {
       sessionId: 'room-1',
       presenterToken: 'secret',

@@ -2,9 +2,9 @@ package media
 
 import (
 	"fmt"
-	"io"
 	"sync"
 
+	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v4"
 )
 
@@ -59,11 +59,12 @@ func (m *Manager) CreateSubscriber(linkID, owner string, offer webrtc.SessionDes
 		switch state {
 		case webrtc.PeerConnectionStateConnected:
 			m.emitMedia(linkID, owner, id, "viewer", "connected")
+			relay.RequestKeyframe()
 		case webrtc.PeerConnectionStateFailed, webrtc.PeerConnectionStateClosed:
 			_ = m.CloseSubscriber(linkID, id, owner)
 		}
 	})
-	go drainRTCP(sender)
+	go drainRTCP(sender, relay)
 	if err := pc.SetRemoteDescription(offer); err != nil {
 		_ = m.CloseSubscriber(linkID, id, owner)
 		return "", webrtc.SessionDescription{}, ErrInvalidSDP
@@ -83,14 +84,17 @@ func (m *Manager) CreateSubscriber(linkID, owner string, offer webrtc.SessionDes
 	return id, *pc.LocalDescription(), nil
 }
 
-func drainRTCP(sender *webrtc.RTPSender) {
-	buffer := make([]byte, 1500)
+func drainRTCP(sender *webrtc.RTPSender, relay *Relay) {
 	for {
-		if _, _, err := sender.Read(buffer); err != nil {
-			if err != io.EOF {
-				return
-			}
+		packets, _, err := sender.ReadRTCP()
+		if err != nil {
 			return
+		}
+		for _, packet := range packets {
+			switch packet.(type) {
+			case *rtcp.PictureLossIndication, *rtcp.FullIntraRequest:
+				relay.RequestKeyframe()
+			}
 		}
 	}
 }

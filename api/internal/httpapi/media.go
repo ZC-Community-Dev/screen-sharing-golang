@@ -166,6 +166,8 @@ func (s *Server) writeMediaError(c *gin.Context, err error) {
 		writeError(c, http.StatusBadRequest, CodeTransportInvalid, "invalid media transport")
 	case errors.Is(err, media.ErrTransportMismatch):
 		writeError(c, http.StatusConflict, CodeTransportMismatch, "publication uses another transport")
+	case errors.Is(err, media.ErrUnauthorized):
+		writeError(c, http.StatusUnauthorized, CodePresenterUnauthorized, "media session ownership failed")
 	default:
 		s.Log.Error("media operation failed", "category", "internal")
 		writeError(c, http.StatusInternalServerError, CodeInternalError, "media operation failed")

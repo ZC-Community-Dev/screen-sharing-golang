@@ -43,7 +43,10 @@ export class MediaService {
   ): Promise<MediaStream> {
     await this.stop();
     this.assertTransport(transport);
-    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: { max: 15 }, width: { max: 1920 }, height: { max: 1080 } },
+      audio: false,
+    });
     for (const track of stream.getAudioTracks()) {
       track.stop();
       stream.removeTrack(track);

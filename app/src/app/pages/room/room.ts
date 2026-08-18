@@ -2,7 +2,8 @@ import { Component, OnDestroy, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription, firstValueFrom } from 'rxjs';
 
-import { publicOrigin, roomPath } from '../../config';
+import { publicOrigin, roomPath, webrtcUdpMayBeUnreachable } from '../../config';
+import { environment } from '../../../environments/environment';
 import { ControlBar } from '../../components/control-bar/control-bar';
 import { MediaTransportSelector } from '../../components/media-transport-selector/media-transport-selector';
 import { Stage } from '../../components/stage/stage';
@@ -36,8 +37,9 @@ export class Room implements OnDestroy {
   readonly playback = signal<MediaPlayback | null>(null);
   readonly publicUrl = signal('');
   readonly mediaTransports = signal<readonly MediaTransport[]>([]);
-  readonly selectedTransport = signal<MediaTransport>('webrtc');
+  readonly selectedTransport = signal<MediaTransport>(environment.defaultMediaTransport);
   readonly mediaError = signal('');
+  readonly webrtcUdpMayBeUnreachable = webrtcUdpMayBeUnreachable;
 
   private sessionId = '';
   private presenterToken = '';
@@ -117,7 +119,7 @@ export class Room implements OnDestroy {
       try {
         const available = await this.media.loadTransports();
         this.mediaTransports.set(available);
-        const defaultTransport = this.media.defaultTransport;
+        const defaultTransport = this.media.defaultTransport ?? available[0];
         if (defaultTransport) this.selectedTransport.set(defaultTransport);
         if (!available.length) {
           this.mediaError.set('Nenhum transporte de mídia está disponível neste navegador.');
@@ -186,6 +188,8 @@ export class Room implements OnDestroy {
       if (event.payload.state === 'ended' || event.payload.state === 'failed') {
         this.playback.set(null);
         if (this.role() === 'viewer') await this.media.stop();
+      } else if (event.payload.state === 'live' && this.role() === 'viewer') {
+        await this.subscribeViewer();
       }
       return;
     }
@@ -200,17 +204,17 @@ export class Room implements OnDestroy {
 
   private async subscribeViewer() {
     try {
-      const transport = this.publication?.transport ?? 'webrtc';
+      const transport = this.publication?.transport;
+      if (!transport) {
+        return;
+      }
       if (!this.mediaTransports().includes(transport)) {
         throw new Error(`Esta transmissão usa ${transport}, indisponível neste navegador.`);
       }
       await this.media.subscribe(
         this.id(),
         this.sessionId,
-        (remote) =>
-          this.playback.set(
-            remote instanceof MediaStream ? { kind: 'stream', stream: remote } : remote,
-          ),
+        (remote) => this.playback.set(toPlayback(remote)),
         (state) => this.onMediaState(state),
         transport,
       );
@@ -224,16 +228,30 @@ export class Room implements OnDestroy {
   private onMediaState(state: MediaConnectionState) {
     if (state === 'connecting' && this.state() !== 'sharing') {
       this.state.set('connecting');
-    } else if (state === 'connected' && this.role() === 'viewer') {
+    } else if (state === 'connected') {
       this.state.set('sharing');
     } else if (state === 'reconnecting') {
-      this.playback.set(null);
       this.state.set('reconnecting');
     } else if (state === 'failed') {
       this.playback.set(null);
+      if (!this.mediaError()) {
+        const transport = this.publication?.transport ?? this.selectedTransport();
+        this.mediaError.set(
+          transport === 'websocket'
+            ? 'A transmissão WebSocket foi interrompida.'
+            : 'O WebRTC/UDP não alcançou o servidor. Atrás do Cloudflare use WebSocket / HTTPS.',
+        );
+      }
       this.state.set('failed');
     } else if (state === 'closed') {
       this.playback.set(null);
     }
   }
+}
+
+function toPlayback(remote: MediaStream | MediaPlayback): MediaPlayback {
+  if (remote && typeof remote === 'object' && 'kind' in remote) {
+    return remote;
+  }
+  return { kind: 'stream', stream: remote };
 }

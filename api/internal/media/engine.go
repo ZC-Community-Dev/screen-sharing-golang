@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/pion/ice/v4"
 	"github.com/pion/interceptor"
@@ -15,11 +16,15 @@ import (
 type EngineConfig struct {
 	UDPPort  int
 	PublicIP string
+	// MTU is the target UDP datagram size for WebRTC/ICE. Default 1200
+	// avoids IP fragmentation on typical internet paths.
+	MTU int
 }
 
 // Engine owns the process-wide UDP4 mux used by every media peer.
 type Engine struct {
 	API    *webrtc.API
+	MTU    int
 	conn   *net.UDPConn
 	mux    ice.UDPMux
 	once   sync.Once
@@ -57,6 +62,10 @@ func NewEngine(cfg EngineConfig) (*Engine, error) {
 	var settings webrtc.SettingEngine
 	settings.SetLite(true)
 	settings.SetNetworkTypes([]webrtc.NetworkType{webrtc.NetworkTypeUDP4})
+	settings.SetICETimeouts(8*time.Second, 20*time.Second, 2*time.Second)
+	// Receive buffer stays at Ethernet size so a slightly larger datagram is
+	// not truncated; senders are asked to stay at cfg.MTU (default 1200).
+	settings.SetReceiveMTU(1500)
 	loggerFactory := logging.NewDefaultLoggerFactory()
 	loggerFactory.Writer = io.Discard
 	settings.LoggerFactory = loggerFactory
@@ -65,8 +74,19 @@ func NewEngine(cfg EngineConfig) (*Engine, error) {
 	if cfg.PublicIP != "" {
 		settings.SetNAT1To1IPs([]string{cfg.PublicIP}, webrtc.ICECandidateTypeHost)
 	}
+	mtu := cfg.MTU
+	if mtu <= 0 {
+		mtu = 1200
+	}
+	if mtu < 576 {
+		mtu = 576
+	}
+	if mtu > 1200 {
+		mtu = 1200
+	}
 	return &Engine{
 		API:  webrtc.NewAPI(webrtc.WithMediaEngine(&mediaEngine), webrtc.WithInterceptorRegistry(&registry), webrtc.WithSettingEngine(settings)),
+		MTU:  mtu,
 		conn: conn,
 		mux:  mux,
 	}, nil

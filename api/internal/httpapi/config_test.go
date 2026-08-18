@@ -13,14 +13,29 @@ func TestMediaConfigDefaultsAndValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.MediaUDPPort != 5000 || cfg.MediaMaxRooms != 20 || cfg.MediaMaxViewersPerRoom != 10 {
+	if cfg.MediaUDPPort != 5000 || cfg.MediaMaxRooms != 20 || cfg.MediaMaxViewersPerRoom != 10 ||
+		cfg.MediaUDPMTU != 1200 {
 		t.Fatalf("unexpected defaults: %+v", cfg)
+	}
+	if len(cfg.CORSOrigins) != 2 || cfg.CORSOrigins[0] != "http://localhost:4200" {
+		t.Fatalf("cors defaults=%v", cfg.CORSOrigins)
+	}
+
+	t.Setenv("CORS_ORIGINS", "https://example.local,http://localhost:4200")
+	cfg, err = Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.CORSOrigins) != 2 || cfg.CORSOrigins[0] != "https://example.local" {
+		t.Fatalf("cors parsed=%v", cfg.CORSOrigins)
 	}
 
 	for _, tc := range []struct {
 		name, key, value string
 	}{
 		{"port", "MEDIA_UDP_PORT", "0"},
+		{"mtu", "MEDIA_UDP_MTU", "1500"},
+		{"mtu low", "MEDIA_UDP_MTU", "500"},
 		{"public ip", "MEDIA_PUBLIC_IP", "not-an-ip"},
 		{"rooms", "MEDIA_MAX_ROOMS", "0"},
 		{"viewers", "MEDIA_MAX_VIEWERS_PER_ROOM", "9"},

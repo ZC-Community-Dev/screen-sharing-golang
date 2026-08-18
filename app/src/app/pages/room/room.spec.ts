@@ -63,6 +63,8 @@ describe('Room', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    media.publish.mockReset();
+    media.subscribe.mockReset();
     media.stop.mockResolvedValue(undefined);
     media.loadTransports.mockResolvedValue(['webrtc']);
     media.defaultTransport = 'webrtc';
@@ -139,5 +141,82 @@ describe('Room', () => {
     TestBed.resetTestingModule();
     const viewer = await render(null);
     expect(viewer.fixture.nativeElement.querySelector('app-media-transport-selector')).toBeNull();
+  });
+
+  it('does not subscribe until the publication transport is known', async () => {
+    media.subscribe.mockResolvedValue(undefined);
+    const { fixture, roomEvents } = await render(null);
+
+    roomEvents.next({ type: 'room.state', payload: { state: 'sharing' } });
+    await fixture.whenStable();
+    expect(media.subscribe).not.toHaveBeenCalled();
+
+    roomEvents.next({
+      type: 'publication.state',
+      payload: { publicationId: 'pub-1', transport: 'webrtc', state: 'live' },
+    });
+    await fixture.whenStable();
+    expect(media.subscribe).toHaveBeenCalledWith(
+      'Abcdefgh12',
+      'v1',
+      expect.any(Function),
+      expect.any(Function),
+      'webrtc',
+    );
+  });
+
+  it('subscribes with the publication transport instead of defaulting to webrtc', async () => {
+    media.loadTransports.mockResolvedValue(['webrtc', 'websocket']);
+    media.subscribe.mockResolvedValue(undefined);
+    const { fixture, roomEvents } = await render(null);
+
+    roomEvents.next({
+      type: 'room.state',
+      payload: {
+        state: 'sharing',
+        publication: { id: 'pub-1', transport: 'websocket', state: 'live' },
+      },
+    });
+    await fixture.whenStable();
+    expect(media.subscribe).toHaveBeenCalledWith(
+      'Abcdefgh12',
+      'v1',
+      expect.any(Function),
+      expect.any(Function),
+      'websocket',
+    );
+  });
+
+  it('marks presenter media as sharing when connected', async () => {
+    const display = {} as MediaStream;
+    media.publish.mockImplementation(async (_id, _session, _token, onState) => {
+      onState?.('connected');
+      return display;
+    });
+    const { fixture } = await render('TOKEN');
+    await fixture.componentInstance.startShare();
+    expect(fixture.componentInstance.state()).toBe('sharing');
+    expect(fixture.componentInstance.playback()).toEqual({ kind: 'stream', stream: display });
+  });
+
+  it('keeps playback while reconnecting', async () => {
+    media.subscribe.mockResolvedValue(undefined);
+    const { fixture, roomEvents } = await render(null);
+    roomEvents.next({
+      type: 'room.state',
+      payload: {
+        state: 'sharing',
+        publication: { id: 'pub-1', transport: 'webrtc', state: 'live' },
+      },
+    });
+    await fixture.whenStable();
+    expect(media.subscribe).toHaveBeenCalled();
+    const playback = { kind: 'stream' as const, stream: { getTracks: () => [] } as unknown as MediaStream };
+    const onRemote = media.subscribe.mock.calls[0][2] as (remote: typeof playback) => void;
+    const onState = media.subscribe.mock.calls[0][3] as (state: 'reconnecting') => void;
+    onRemote(playback);
+    onState('reconnecting');
+    expect(fixture.componentInstance.playback()).toEqual(playback);
+    expect(fixture.componentInstance.state()).toBe('reconnecting');
   });
 });

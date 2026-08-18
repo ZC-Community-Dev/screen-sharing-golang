@@ -51,10 +51,19 @@ ou abre o SQLite conforme `LINKS_DB_PATH`.
 
 - Configuração pública do frontend fica em `app/src/environments/`.
 - `LINK_ID_SALT`, banco e tokens permanecem somente na API.
+- `CORS_ORIGINS` lista origens extras (dev Angular e o HTTPS público
+  atrás do Cloudflare). Same-origin (`https://example.local`) é
+  aceito automaticamente quando o `Host` público chega ao processo Go.
 - O pipeline rejeita `.env` e bancos dentro do bundle do frontend.
 - `MEDIA_UDP_PORT` (padrão `5000`) deve aceitar UDP no firewall.
+- `MEDIA_UDP_MTU` (padrão `1200`) é o tamanho máximo do datagrama UDP de
+  mídia. Valores maiores fragmentam atrás de internet/VPN e deixam a
+  tela cinza. O frontend usa o mesmo teto em `mediaUdpMtu`.
 - `MEDIA_PUBLIC_IP` fica vazio em localhost/LAN; atrás de NAT, configure o
   IP público cujo UDP é encaminhado para `MEDIA_UDP_PORT`.
+- No frontend, `mediaUdpHost`, `mediaUdpPort` e `mediaUdpMtu` em
+  `app/src/environments/` apontam o navegador para o IPv4/porta UDP e
+  limitam cada pacote a 1200 bytes. `mediaUdpHost` vazio preserva o SDP.
 - `MEDIA_MAX_ROOMS` e `MEDIA_MAX_VIEWERS_PER_ROOM` limitam capacidade; o
   limite por sala deve ser no mínimo 10.
 - `MEDIA_ALLOWED_TRANSPORTS=webrtc,websocket` e
@@ -93,7 +102,14 @@ runtime. Não exponha o SQLite, `LINK_ID_SALT` ou tokens no frontend.
 ## Rede e navegadores
 
 - Encaminhe HTTP e upgrades WSS de eventos/mídia para a mesma porta do
-  processo Go.
+  processo Go. No Cloudflare, ative WebSockets (Network) e use SSL Full
+  ou Full (strict). O handshake WSS aceita same-origin; se o `Host`
+  interno for o IP de origem, defina `CORS_ORIGINS` com a origem HTTPS
+  pública (`https://example.local`). O proxy da Cloudflare **não** encaminha
+  UDP: em domínio público o default de mídia deve ser `websocket`
+  (`defaultMediaTransport` no frontend e, se quiser, `MEDIA_DEFAULT_TRANSPORT`).
+  WebRTC só funciona se o navegador alcançar `mediaUdpHost:MEDIA_UDP_PORT`
+  direto (LAN ou UDP aberto no IP público), sem passar pela Cloudflare.
 - Libere `MEDIA_UDP_PORT` somente quando `webrtc` estiver habilitado.
 - Chrome/Edge validados oferecem WebRTC e WebSocket.
 - Firefox permanece em WebRTC nesta versão; a opção WebSocket fica

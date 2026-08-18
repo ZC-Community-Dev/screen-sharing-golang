@@ -3,6 +3,7 @@ package httpapi
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -33,6 +34,7 @@ type Config struct {
 	CORSOrigins            []string
 	MediaUDPPort           int
 	MediaPublicIP          string
+	MediaUDPMTU            int
 	MediaMaxRooms          int
 	MediaMaxViewersPerRoom int
 	MediaAllowedTransports []media.Transport
@@ -77,6 +79,10 @@ func Load() (Config, error) {
 			return Config{}, fmt.Errorf("MEDIA_PUBLIC_IP must be a valid IPv4 address")
 		}
 	}
+	udpMTU, err := envInt("MEDIA_UDP_MTU", 1200)
+	if err != nil || udpMTU < 576 || udpMTU > 1200 {
+		return Config{}, fmt.Errorf("MEDIA_UDP_MTU must be between 576 and 1200")
+	}
 	maxRooms, err := envInt("MEDIA_MAX_ROOMS", 20)
 	if err != nil || maxRooms < 1 {
 		return Config{}, fmt.Errorf("MEDIA_MAX_ROOMS must be greater than zero")
@@ -93,13 +99,18 @@ func Load() (Config, error) {
 	if err != nil || maxBuffer < 1 || maxBuffer > 128<<20 {
 		return Config{}, fmt.Errorf("MEDIA_WS_MAX_BUFFER_BYTES must be between 1 and 134217728")
 	}
+	origins, err := parseCORSOrigins(os.Getenv("CORS_ORIGINS"))
+	if err != nil {
+		return Config{}, err
+	}
 	return Config{
 		Salt:                   salt,
 		DBPath:                 dbPath,
 		Port:                   port,
-		CORSOrigins:            []string{"http://localhost:4200", "http://127.0.0.1:4200"},
+		CORSOrigins:            origins,
 		MediaUDPPort:           mediaPort,
 		MediaPublicIP:          publicIP,
+		MediaUDPMTU:            udpMTU,
 		MediaMaxRooms:          maxRooms,
 		MediaMaxViewersPerRoom: maxViewers,
 		MediaAllowedTransports: allowed,
@@ -135,6 +146,33 @@ func parseTransports(raw string) ([]media.Transport, error) {
 		return nil, fmt.Errorf("MEDIA_ALLOWED_TRANSPORTS must not be empty")
 	}
 	return transports, nil
+}
+
+func parseCORSOrigins(raw string) ([]string, error) {
+	if strings.TrimSpace(raw) == "" {
+		return []string{"http://localhost:4200", "http://127.0.0.1:4200"}, nil
+	}
+	seen := make(map[string]bool)
+	var origins []string
+	for _, item := range strings.Split(raw, ",") {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		parsed, err := url.Parse(item)
+		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.Path != "" {
+			return nil, fmt.Errorf("CORS_ORIGINS must be a comma-separated list of http(s) origins")
+		}
+		if seen[item] {
+			return nil, fmt.Errorf("CORS_ORIGINS must contain unique origins")
+		}
+		seen[item] = true
+		origins = append(origins, item)
+	}
+	if len(origins) == 0 {
+		return nil, fmt.Errorf("CORS_ORIGINS must not be empty")
+	}
+	return origins, nil
 }
 
 func containsTransport(transports []media.Transport, target media.Transport) bool {
