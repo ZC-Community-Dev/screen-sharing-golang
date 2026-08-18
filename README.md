@@ -1,8 +1,9 @@
 # Screen Share
 
 Compartilhamento de tela por link, com Angular no navegador e API
-Go/Gin. A mídia é WebRTC P2P; o servidor controla links, presença e
-sinalização.
+Go/Gin. Toda mídia passa pelo servidor, sem conexão P2P. O apresentador
+pode usar WebRTC/UDP via SFU Pion ou WebSocket/WebM na mesma origem
+HTTPS; cada publicação mantém um único transporte.
 
 ## Desenvolvimento
 
@@ -51,6 +52,51 @@ ou abre o SQLite conforme `LINKS_DB_PATH`.
 - Configuração pública do frontend fica em `app/src/environments/`.
 - `LINK_ID_SALT`, banco e tokens permanecem somente na API.
 - O pipeline rejeita `.env` e bancos dentro do bundle do frontend.
+- `MEDIA_UDP_PORT` (padrão `5000`) deve aceitar UDP no firewall.
+- `MEDIA_PUBLIC_IP` fica vazio em localhost/LAN; atrás de NAT, configure o
+  IP público cujo UDP é encaminhado para `MEDIA_UDP_PORT`.
+- `MEDIA_MAX_ROOMS` e `MEDIA_MAX_VIEWERS_PER_ROOM` limitam capacidade; o
+  limite por sala deve ser no mínimo 10.
+- `MEDIA_ALLOWED_TRANSPORTS=webrtc,websocket` e
+  `MEDIA_DEFAULT_TRANSPORT=webrtc` controlam o backend. O frontend define
+  sua lista/default em `app/src/environments/` e mostra somente opções
+  aceitas pelos dois lados.
+- `MEDIA_WS_MAX_CHUNK_BYTES` e `MEDIA_WS_MAX_BUFFER_BYTES` limitam
+  mensagens e o buffer WebSocket, que nunca excede 2 segundos e é
+  apagado ao parar/falhar.
+- Em produção, termine HTTPS/WSS em proxy reverso. SDP, tokens,
+  tickets/query, endereços ICE e conteúdo RTP/WebM não devem ser
+  registrados.
 
 Veja os cenários completos em
-`specs/002-embed-frontend/quickstart.md`.
+`specs/003-server-relay-screen/quickstart.md`.
+
+## Build Linux
+
+Compile o frontend antes para incorporá-lo e exponha tanto a porta HTTP
+TCP quanto a porta de mídia UDP:
+
+```powershell
+cd app
+npm ci
+npm run build
+
+cd ../api
+$env:GOOS = "linux"
+$env:GOARCH = "amd64"
+go build -o screen-share-linux-amd64 ./cmd/server
+```
+
+O binário continua usando `api/.env` (ou variáveis do ambiente) em
+runtime. Não exponha o SQLite, `LINK_ID_SALT` ou tokens no frontend.
+
+## Rede e navegadores
+
+- Encaminhe HTTP e upgrades WSS de eventos/mídia para a mesma porta do
+  processo Go.
+- Libere `MEDIA_UDP_PORT` somente quando `webrtc` estiver habilitado.
+- Chrome/Edge validados oferecem WebRTC e WebSocket.
+- Firefox permanece em WebRTC nesta versão; a opção WebSocket fica
+  oculta até garantir keyframes VP8 dentro da janela de 2 segundos.
+- Não há fallback automático: falhas são exibidas e a publicação mantém
+  o transporte escolhido.

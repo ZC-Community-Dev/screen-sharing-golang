@@ -18,14 +18,26 @@ func Open(path string) (*sql.DB, error) {
 		return nil, err
 	}
 	if _, err := database.Exec(`
+		BEGIN IMMEDIATE;
 		CREATE TABLE IF NOT EXISTS links (
 			id TEXT PRIMARY KEY,
 			presenter_token_hash TEXT NOT NULL,
 			created_at TEXT NOT NULL,
-			state TEXT NOT NULL CHECK (state IN ('waiting', 'sharing'))
+			state TEXT NOT NULL
 		);
-		UPDATE links SET state = 'waiting' WHERE state = 'sharing';
+		CREATE TABLE links_media_v2 (
+			id TEXT PRIMARY KEY,
+			presenter_token_hash TEXT NOT NULL,
+			created_at TEXT NOT NULL,
+			state TEXT NOT NULL CHECK (state IN ('waiting', 'connecting', 'sharing', 'reconnecting', 'failed'))
+		);
+		INSERT INTO links_media_v2 (id, presenter_token_hash, created_at, state)
+			SELECT id, presenter_token_hash, created_at, 'waiting' FROM links;
+		DROP TABLE links;
+		ALTER TABLE links_media_v2 RENAME TO links;
+		COMMIT;
 	`); err != nil {
+		_, _ = database.Exec(`ROLLBACK`)
 		_ = database.Close()
 		return nil, fmt.Errorf("migrate: %w", err)
 	}

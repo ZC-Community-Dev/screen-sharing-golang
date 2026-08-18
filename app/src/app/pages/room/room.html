@@ -1,10 +1,22 @@
 <div class="flex min-h-dvh flex-col bg-meet-bg text-white">
-  <app-stage class="flex min-h-0 flex-1" [state]="state()" [stream]="stream()" />
+  <app-stage class="flex min-h-0 flex-1" [state]="state()" [playback]="playback()" />
+  @if (mediaError()) {
+    <p role="alert" class="bg-red-950 px-6 py-2 text-center text-sm text-red-200">
+      {{ mediaError() }}
+    </p>
+  }
+  @if (showTransportSelector) {
+    <app-media-transport-selector
+      [transports]="mediaTransports()"
+      [selected]="selectedTransport()"
+      (selectedChange)="selectedTransport.set($event)"
+    />
+  }
   <app-control-bar
     [participantCount]="participantCount()"
     [publicUrl]="publicUrl()"
     [canPresent]="canPresent"
-    [sharing]="state() === 'sharing'"
+    [sharing]="state() !== 'waiting' && state() !== 'failed'"
     (copy)="copyLink()"
     (startShare)="startShare()"
     (stopShare)="stopShare()"

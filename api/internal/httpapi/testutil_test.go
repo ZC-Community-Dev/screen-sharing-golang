@@ -27,15 +27,21 @@ func testServer(t *testing.T) *Server {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewWithFrontend(
+	srv := NewWithFrontend(
 		Config{Salt: "test-salt-value", CORSOrigins: []string{"http://localhost:4200"}},
 		database,
 		NewLogger(),
 		frontend,
 	)
+	t.Cleanup(func() { _ = srv.Close() })
+	return srv
 }
 
 func doJSON(t *testing.T, srv *Server, method, path string, body any) *httptest.ResponseRecorder {
+	return doJSONWithHeader(t, srv, method, path, body, "", "")
+}
+
+func doJSONWithHeader(t *testing.T, srv *Server, method, path string, body any, key, value string) *httptest.ResponseRecorder {
 	t.Helper()
 	var buf bytes.Buffer
 	if body != nil {
@@ -45,6 +51,9 @@ func doJSON(t *testing.T, srv *Server, method, path string, body any) *httptest.
 	}
 	req := httptest.NewRequest(method, path, &buf)
 	req.Header.Set("Content-Type", "application/json")
+	if key != "" {
+		req.Header.Set(key, value)
+	}
 	rec := httptest.NewRecorder()
 	srv.Engine.ServeHTTP(rec, req)
 	return rec

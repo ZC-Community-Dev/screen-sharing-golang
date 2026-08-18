@@ -1,0 +1,441 @@
+openapi: 3.1.0
+info:
+  title: Screen Share Server Relay API
+  version: 2.1.0
+  license:
+    name: Internal use
+    identifier: LicenseRef-Internal
+  description: >
+    API de controle para relay WebRTC/UDP e WebSocket/WebM. Nenhum body
+    roteia oferta, resposta ou ICE a outro participante. SDP, tickets,
+    tokens e endereços ICE nunca são registrados em log.
+servers:
+  - url: /api/v2
+security: []
+paths:
+  /media/config:
+    get:
+      operationId: getMediaConfig
+      summary: Retorna transportes habilitados e parâmetros públicos
+      responses:
+        "200":
+          description: Configuração pública sem IP, porta UDP ou segredos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaConfig"
+  /links:
+    $ref: "../../001-screen-share-links/contracts/http-api.yaml#/paths/~1links"
+  /links/{id}:
+    get:
+      operationId: getLinkV2
+      summary: Consulta link, estado e publicação ativa
+      parameters:
+        - $ref: "#/components/parameters/LinkId"
+      responses:
+        "200":
+          description: Estado público atual
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkPublicV2"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /links/{id}/presenter-sessions:
+    $ref: "../../001-screen-share-links/contracts/http-api.yaml#/paths/~1links~1{id}~1presenter-sessions"
+  /links/{id}/viewer-sessions:
+    $ref: "../../001-screen-share-links/contracts/http-api.yaml#/paths/~1links~1{id}~1viewer-sessions"
+  /links/{id}/media/publisher:
+    post:
+      operationId: createPublisher
+      summary: Negocia a única publicação presenter → servidor
+      parameters:
+        - $ref: "#/components/parameters/LinkId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublisherOffer"
+      responses:
+        "201":
+          description: Peer servidor criado; answer contém candidates completos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaAnswer"
+        "400":
+          $ref: "#/components/responses/InvalidSDP"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Publisher existente ou sessão não pronta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "429":
+          $ref: "#/components/responses/Capacity"
+  /links/{id}/media/subscribers:
+    post:
+      operationId: createSubscriber
+      summary: Negocia distribuição servidor → viewer
+      parameters:
+        - $ref: "#/components/parameters/LinkId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriberOffer"
+      responses:
+        "201":
+          description: Subscriber criado e vinculado à track da mesma sala
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaAnswer"
+        "400":
+          $ref: "#/components/responses/InvalidSDP"
+        "401":
+          description: Sessão viewer inexistente ou de outro link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Publicação ainda não possui vídeo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "429":
+          $ref: "#/components/responses/Capacity"
+  /links/{id}/media/subscribers/{mediaSessionId}:
+    delete:
+      operationId: deleteSubscriber
+      summary: Encerra explicitamente uma distribuição viewer
+      parameters:
+        - $ref: "#/components/parameters/LinkId"
+        - name: mediaSessionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: X-Room-Session-ID
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Subscriber encerrado (idempotente)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /links/{id}/media/websocket-tickets:
+    post:
+      operationId: createMediaWebSocketTicket
+      summary: Emite ticket curto e de uso único para socket de mídia
+      parameters:
+        - $ref: "#/components/parameters/LinkId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebSocketTicketRequest"
+      responses:
+        "201":
+          description: Ticket pronto para upgrade na mesma origem
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebSocketTicket"
+        "400":
+          description: Transporte, papel ou sessão inválida
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Transporte WebSocket não habilitado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Publicação ausente, conflitante ou com outro transporte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "429":
+          $ref: "#/components/responses/Capacity"
+  /links/{id}/media/websocket:
+    get:
+      operationId: openMediaWebSocket
+      summary: Faz upgrade para o socket binário de mídia
+      parameters:
+        - $ref: "#/components/parameters/LinkId"
+        - name: ticket
+          in: query
+          required: true
+          description: Ticket opaco, curto e de uso único; nunca logado
+          schema:
+            type: string
+      responses:
+        "101":
+          description: Protocolos alternados para screen-share-media-v1
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "426":
+          description: Upgrade WebSocket/subprotocolo obrigatório
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+  /links/{id}/share/stop:
+    post:
+      operationId: stopServerRelay
+      summary: Fecha publisher, subscribers e volta o link a waiting
+      parameters:
+        - $ref: "#/components/parameters/LinkId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PresenterAuth"
+      responses:
+        "200":
+          description: Publicação encerrada; link continua válido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkPublicV2"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+components:
+  parameters:
+    LinkId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[0-9A-Za-z]{8,}$"
+  responses:
+    NotFound:
+      description: Link ou sessão de mídia inexistente
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+    Unauthorized:
+      description: Papel, sessão ou token inválido
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+    InvalidSDP:
+      description: Offer ausente, grande demais, inválida ou sem vídeo esperado
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+    Capacity:
+      description: Limite de salas ou viewers atingido
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+  schemas:
+    SDP:
+      type: object
+      additionalProperties: false
+      required: [type, sdp]
+      properties:
+        type:
+          type: string
+          enum: [offer, answer]
+        sdp:
+          type: string
+          minLength: 1
+          maxLength: 131072
+          description: Nunca incluir em logs
+    PublisherOffer:
+      type: object
+      additionalProperties: false
+      required: [sessionId, presenterToken, offer]
+      properties:
+        sessionId:
+          type: string
+        presenterToken:
+          type: string
+        offer:
+          $ref: "#/components/schemas/SDP"
+    SubscriberOffer:
+      type: object
+      additionalProperties: false
+      required: [sessionId, offer]
+      properties:
+        sessionId:
+          type: string
+        offer:
+          $ref: "#/components/schemas/SDP"
+    MediaConfig:
+      type: object
+      additionalProperties: false
+      required: [allowedTransports, defaultTransport, websocket]
+      properties:
+        allowedTransports:
+          type: array
+          uniqueItems: true
+          minItems: 1
+          items:
+            type: string
+            enum: [webrtc, websocket]
+        defaultTransport:
+          type: string
+          enum: [webrtc, websocket]
+        websocket:
+          type: object
+          additionalProperties: false
+          required: [mimeType, timesliceMs, startupBufferMs, maxChunkBytes]
+          properties:
+            mimeType:
+              const: video/webm;codecs=vp8
+            timesliceMs:
+              type: integer
+              minimum: 100
+            startupBufferMs:
+              type: integer
+              maximum: 2000
+            maxChunkBytes:
+              type: integer
+              minimum: 1
+              default: 4194304
+    WebSocketTicketRequest:
+      type: object
+      additionalProperties: false
+      required: [sessionId, role]
+      properties:
+        sessionId:
+          type: string
+        role:
+          type: string
+          enum: [publisher, viewer]
+        presenterToken:
+          type: string
+          description: Obrigatório somente para publisher; nunca logado
+    WebSocketTicket:
+      type: object
+      additionalProperties: false
+      required: [ticket, expiresAt, websocketPath]
+      properties:
+        ticket:
+          type: string
+          description: Opaco, uso único, nunca logado
+        expiresAt:
+          type: string
+          format: date-time
+        websocketPath:
+          type: string
+          example: /api/v2/links/Abcdefgh12/media/websocket
+    MediaAnswer:
+      type: object
+      additionalProperties: false
+      required: [mediaSessionId, answer]
+      properties:
+        mediaSessionId:
+          type: string
+          description: Opaco; não é room session nem segredo
+        answer:
+          $ref: "#/components/schemas/SDP"
+    PresenterAuth:
+      type: object
+      additionalProperties: false
+      required: [sessionId, presenterToken]
+      properties:
+        sessionId:
+          type: string
+        presenterToken:
+          type: string
+    LinkPublicV2:
+      type: object
+      additionalProperties: false
+      required: [id, state, participantCount]
+      properties:
+        id:
+          type: string
+        state:
+          type: string
+          enum: [waiting, connecting, sharing, reconnecting, failed]
+        participantCount:
+          type: integer
+          minimum: 0
+        publication:
+          anyOf:
+            - $ref: "#/components/schemas/PublicationPublic"
+            - type: "null"
+    PublicationPublic:
+      type: object
+      additionalProperties: false
+      required: [id, transport, state]
+      properties:
+        id:
+          type: string
+        transport:
+          type: string
+          enum: [webrtc, websocket]
+        state:
+          type: string
+          enum: [connecting, live, reconnecting, failed, ended]
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - link_not_found
+                - link_invalid
+                - presenter_unauthorized
+                - presenter_conflict
+                - media_not_ready
+                - media_conflict
+                - media_capacity
+                - invalid_sdp
+                - media_session_not_found
+                - transport_invalid
+                - transport_not_allowed
+                - publication_transport_mismatch
+                - media_codec_unsupported
+                - media_start_timeout
+                - media_protocol_error
+                - media_slow_consumer
+                - websocket_upgrade_required
+                - internal_error
+            message:
+              type: string
+              description: Sem SDP, token, salt, IP ou conteúdo de mídia

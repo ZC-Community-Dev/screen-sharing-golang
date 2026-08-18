@@ -37,6 +37,7 @@ func main() {
 	defer database.Close()
 
 	srv := httpapi.NewWithFrontend(cfg, database, logger, frontend)
+	defer srv.Close()
 	addr := ":" + cfg.Port
 	logger.Info("listen", "addr", addr)
 	if err := srv.Engine.Run(addr); err != nil {

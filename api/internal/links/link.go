@@ -3,8 +3,11 @@ package links
 import "time"
 
 const (
-	StateWaiting = "waiting"
-	StateSharing = "sharing"
+	StateWaiting      = "waiting"
+	StateConnecting   = "connecting"
+	StateSharing      = "sharing"
+	StateReconnecting = "reconnecting"
+	StateFailed       = "failed"
 )
 
 type Link struct {

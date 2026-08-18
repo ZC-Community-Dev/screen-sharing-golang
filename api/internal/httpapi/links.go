@@ -20,6 +20,7 @@ type linkPublic struct {
 	ID               string `json:"id"`
 	State            string `json:"state"`
 	ParticipantCount int    `json:"participantCount"`
+	Publication      any    `json:"publication,omitempty"`
 }
 
 func (s *Server) createLink(c *gin.Context) {
@@ -60,5 +61,6 @@ func (s *Server) publicLink(link links.Link) linkPublic {
 		ID:               link.ID,
 		State:            link.State,
 		ParticipantCount: s.Hub.Count(link.ID),
+		Publication:      s.Hub.Publication(link.ID),
 	}
 }

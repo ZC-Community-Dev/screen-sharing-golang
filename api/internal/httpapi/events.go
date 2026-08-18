@@ -2,10 +2,10 @@ package httpapi
 
 import (
 	"net/http"
+	"time"
 
 	"api/internal/ids"
 	"api/internal/links"
-	"api/internal/room"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -20,7 +20,20 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func (s *Server) events(c *gin.Context) {
+func (s *Server) eventsV1(c *gin.Context) {
+	id := c.Param("id")
+	if !ids.ValidPublicID(id) {
+		writeError(c, http.StatusBadRequest, CodeLinkInvalid, "invalid link")
+		return
+	}
+	if _, err := s.Links.GetByID(id); err != nil {
+		writeError(c, http.StatusNotFound, CodeLinkNotFound, "link not found")
+		return
+	}
+	writeError(c, http.StatusGone, "api_version_retired", "participant signaling has moved to API v2 media endpoints")
+}
+
+func (s *Server) eventsV2(c *gin.Context) {
 	id := c.Param("id")
 	if !ids.ValidPublicID(id) {
 		writeError(c, http.StatusBadRequest, CodeLinkInvalid, "invalid link")
@@ -46,6 +59,8 @@ func (s *Server) events(c *gin.Context) {
 		return
 	}
 	defer func() {
+		s.cleanupTicketReservations(id, sessionID)
+		s.Media.CloseRoomSession(id, sessionID)
 		if s.Hub.Disconnect(id, sessionID) {
 			_ = s.Links.SetState(id, links.StateWaiting)
 		}
@@ -55,19 +70,16 @@ func (s *Server) events(c *gin.Context) {
 	go func() {
 		defer close(done)
 		for {
-			_, raw, err := conn.ReadMessage()
+			_, _, err := conn.ReadMessage()
 			if err != nil {
 				return
 			}
-			out, to, ok := room.RelaySignal(raw, sessionID)
-			if !ok {
-				continue
-			}
-			to = room.ResolveSignalTo(to, s.Hub.PresenterID(id))
-			if to == "" {
-				continue
-			}
-			s.Hub.SendTo(id, sessionID, to, out)
+			_ = conn.WriteControl(
+				websocket.CloseMessage,
+				websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "client event frames are not accepted"),
+				time.Now().Add(time.Second),
+			)
+			return
 		}
 	}()
 

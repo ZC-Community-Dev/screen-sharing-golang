@@ -3,7 +3,15 @@
     <p data-testid="waiting" class="text-center text-lg text-meet-muted">
       Aguardando o apresentador compartilhar a tela
     </p>
-  } @else if (!stream()) {
+  } @else if (state() === 'failed') {
+    <p data-testid="failed" class="text-center text-lg text-red-300">
+      Não foi possível conectar à transmissão. Tente novamente.
+    </p>
+  } @else if (state() === 'reconnecting') {
+    <p data-testid="reconnecting" class="text-center text-lg text-meet-muted">
+      Reconectando à transmissão…
+    </p>
+  } @else if (state() === 'connecting' || !playback()) {
     <p data-testid="connecting" class="text-center text-lg text-meet-muted">
       Conectando à tela…
     </p>
@@ -15,6 +23,7 @@
       autoplay
       playsinline
       muted
+      (loadedmetadata)="seekLiveEdge(screen)"
     ></video>
   }
 </section>

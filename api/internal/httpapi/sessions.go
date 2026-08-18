@@ -94,6 +94,34 @@ func (s *Server) stopShare(c *gin.Context) {
 	s.mutateShare(c, false)
 }
 
+// prepareShareV2 retains the link API operation while media state remains
+// authoritative: sharing is reached only after the SFU receives a VP8 track.
+func (s *Server) prepareShareV2(c *gin.Context) {
+	id, ok := s.parseID(c)
+	if !ok {
+		return
+	}
+	var req presenterAuth
+	if err := c.ShouldBindJSON(&req); err != nil || req.SessionID == "" || req.PresenterToken == "" {
+		writeError(c, http.StatusUnauthorized, CodePresenterUnauthorized, "presenter credentials required")
+		return
+	}
+	if err := s.Links.VerifyToken(id, req.PresenterToken); err != nil {
+		writeError(c, http.StatusUnauthorized, CodePresenterUnauthorized, "presenter authorization failed")
+		return
+	}
+	if role, exists := s.Hub.SessionRole(id, req.SessionID); !exists || role != room.RolePresenter {
+		writeError(c, http.StatusUnauthorized, CodePresenterUnauthorized, "invalid presenter session")
+		return
+	}
+	link, err := s.Links.GetByID(id)
+	if err != nil {
+		writeError(c, http.StatusNotFound, CodeLinkNotFound, "link not found")
+		return
+	}
+	c.JSON(http.StatusOK, s.publicLink(link))
+}
+
 func (s *Server) mutateShare(c *gin.Context, start bool) {
 	id, ok := s.parseID(c)
 	if !ok {
@@ -116,6 +144,10 @@ func (s *Server) mutateShare(c *gin.Context, start bool) {
 	if start {
 		err = s.Hub.StartShare(id, req.SessionID)
 	} else {
+		s.cleanupTicketReservations(id, "")
+		if publisher := s.Media.Publisher(id); publisher != nil {
+			s.Media.ClosePublisher(id, publisher.ID)
+		}
 		err = s.Hub.StopShare(id, req.SessionID)
 	}
 	switch {

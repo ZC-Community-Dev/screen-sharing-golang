@@ -20,6 +20,15 @@ export function eventsWsUrl(linkId: string, sessionId: string): string {
   return `${proto}://${location.host}${path}`;
 }
 
+export function mediaWsUrl(websocketPath: string, ticket: string): string {
+  const path = `${websocketPath}?ticket=${encodeURIComponent(ticket)}`;
+  if (/^https?:\/\//.test(path)) {
+    return path.replace(/^http/, 'ws');
+  }
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  return `${proto}://${location.host}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
 export function publicOrigin(): string {
   return environment.appOrigin || location.origin;
 }
@@ -27,8 +36,4 @@ export function publicOrigin(): string {
 export function roomPath(id: string): string {
   const prefix = environment.roomPathPrefix.replace(/\/$/, '');
   return `${prefix}/${id}`;
-}
-
-export function iceServers(): RTCIceServer[] {
-  return environment.stunUrls.map((urls) => ({ urls }));
 }

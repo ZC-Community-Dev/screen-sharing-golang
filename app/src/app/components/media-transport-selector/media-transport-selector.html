@@ -1,0 +1,18 @@
+<fieldset class="flex items-center justify-center gap-3 bg-meet-bar px-6 py-3">
+  <legend class="sr-only">Transporte da transmissão</legend>
+  <span class="text-sm text-meet-muted">Enviar por</span>
+  @for (transport of transports(); track transport) {
+    <label class="cursor-pointer rounded-full bg-white/10 px-4 py-2 text-sm">
+      <input
+        class="mr-2"
+        type="radio"
+        name="media-transport"
+        [attr.data-testid]="'transport-' + transport"
+        [value]="transport"
+        [checked]="selected() === transport"
+        (change)="selectedChange.emit(transport)"
+      />
+      {{ label(transport) }}
+    </label>
+  }
+</fieldset>

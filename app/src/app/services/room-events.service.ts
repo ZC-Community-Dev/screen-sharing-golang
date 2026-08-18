@@ -2,30 +2,36 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { eventsWsUrl } from '../config';
+import { PublicationPublic, PublicationState, RoomState } from './links.service';
+import { MediaTransport } from './media-transport';
 
-export interface RoomEvent {
-  type: 'room.state' | 'presence' | 'signal';
-  from?: string;
-  payload: Record<string, unknown>;
-}
+export type RoomEvent =
+  | { type: 'room.state'; payload: { state: RoomState; publication?: PublicationPublic | null } }
+  | {
+      type: 'publication.state';
+      payload: {
+        publicationId: string;
+        transport: MediaTransport;
+        state: PublicationState;
+      };
+    }
+  | { type: 'presence'; payload: { participantCount: number } }
+  | {
+      type: 'media.state';
+      payload: {
+        state: 'connecting' | 'connected' | 'reconnecting' | 'failed' | 'closed';
+        role: 'presenter' | 'viewer';
+        mediaSessionId?: string;
+        transport?: MediaTransport;
+        publicationId?: string;
+      };
+    };
 
 @Injectable({ providedIn: 'root' })
 export class RoomEventsService {
-  private socket?: WebSocket;
-  private pending: string[] = [];
-  private openResolvers: Array<() => void> = [];
-
   connect(id: string, sessionId: string): Observable<RoomEvent> {
     return new Observable((subscriber) => {
       const socket = new WebSocket(eventsWsUrl(id, sessionId));
-      this.socket = socket;
-      this.pending = [];
-      socket.onopen = () => {
-        this.flush(socket);
-        for (const resolve of this.openResolvers.splice(0)) {
-          resolve();
-        }
-      };
       socket.onmessage = (event) => {
         subscriber.next(JSON.parse(event.data) as RoomEvent);
       };
@@ -33,33 +39,7 @@ export class RoomEventsService {
       socket.onclose = () => subscriber.complete();
       return () => {
         socket.close();
-        if (this.socket === socket) {
-          this.socket = undefined;
-          this.pending = [];
-        }
       };
     });
-  }
-
-  whenOpen(): Promise<void> {
-    if (this.socket?.readyState === WebSocket.OPEN) {
-      return Promise.resolve();
-    }
-    return new Promise((resolve) => this.openResolvers.push(resolve));
-  }
-
-  send(message: unknown) {
-    const data = JSON.stringify(message);
-    if (this.socket?.readyState === WebSocket.OPEN) {
-      this.socket.send(data);
-      return;
-    }
-    this.pending.push(data);
-  }
-
-  private flush(socket: WebSocket) {
-    for (const frame of this.pending.splice(0)) {
-      socket.send(frame);
-    }
   }
 }
